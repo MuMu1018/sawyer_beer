@@ -1,7 +1,6 @@
-# link of reference: https://gist.github.com/awesomebytes/6951f6aa8b96779ece57fbbc12c02992
+# link: https://gist.github.com/awesomebytes/6951f6aa8b96779ece57fbbc12c02992
 
-# MoveIt! scene file example, remove the commented one to load it (it does not support comments)
-box_scene
+#
 * box1
 1
 box
