@@ -90,16 +90,17 @@ class beerGrabber():
         # fridge scene()
 
 
-    def checkValidation(self,):
+    def checkCollisions(self,):
     ## check the JointState of target configuration,
     # input: JointState of the target configuration
-    # output: True or False
+    # output: return True when there is collision
+        return False
 
     def generateValidTargetJointState(self,pose):
     # input: target in Cartesian Space
     # output: valid target in JointState (a list of 7 numbers)
         target = self.convertToJointStates(pose)
-        while not checkValidation(target):
+        while checkCollisions(target):
             target = self.convertToJointStates(pose)
         return target
 
