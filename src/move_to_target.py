@@ -18,6 +18,7 @@ class beerGrabber():
     def getTargetEEF():
     # no Input
     # Output: target position in Cartesian Space (from vision)
+    # TODO: implement after vision group done
 
     def convertToJointStates(self,pose):
     # inpout: Cartesian position of target
@@ -65,10 +66,17 @@ if __name__=='__main__':
     bg.addCollisionObjects()
 
     # get target in Cartesian
-    target = bg.getTargetEEF()
+    #pose_target = bg.getTargetEEF()
+
+    # test point in Cartesian Space
+    pose_target = geometry_msgs.msg.Pose()
+    pose_target.orientation.w = 2.05
+    pose_target.position.x = 0.75
+    pose_target.position.y = -0.05
+    pose_target.position.z = 1.1
 
     # get target in JointState
-    target_js = bg.generateValidTargetJointState(target)
+    target_js = bg.generateValidTargetJointState(pose_target)
 
     # set target
     group.set_joint_value_target(target_js)
