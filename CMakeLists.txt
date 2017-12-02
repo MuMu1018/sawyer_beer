@@ -53,11 +53,12 @@ find_package(catkin REQUIRED COMPONENTS
 ##   * add every package in MSG_DEP_SET to generate_messages(DEPENDENCIES ...)
 
 ## Generate messages in the 'msg' folder
-# add_message_files(
-#   FILES
+add_message_files(
+  FILES
 #   Message1.msg
 #   Message2.msg
-# )
+  Centroid.msg
+  )
 
 ## Generate services in the 'srv' folder
 # add_service_files(
@@ -74,10 +75,10 @@ find_package(catkin REQUIRED COMPONENTS
 # )
 
 ## Generate added messages and services with any dependencies listed here
-# generate_messages(
-#   DEPENDENCIES
-#   geometry_msgs#   intera_core_msgs#   sensor_msgs#   std_msgs
-# )
+ generate_messages(
+   DEPENDENCIES
+   geometry_msgs   intera_core_msgs   sensor_msgs   std_msgs
+ )
 
 ################################################
 ## Declare ROS dynamic reconfigure parameters ##
@@ -111,7 +112,7 @@ find_package(catkin REQUIRED COMPONENTS
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES sawyer_beer
-#  CATKIN_DEPENDS cv_bridge geometry_msgs intera_core_msgs message_generation roscpp rospy sensor_msgs std_msgs std_srvs
+CATKIN_DEPENDS cv_bridge geometry_msgs intera_core_msgs message_generation roscpp rospy sensor_msgs std_msgs std_srvs message_runtime
 #  DEPENDS system_lib
 )
 
