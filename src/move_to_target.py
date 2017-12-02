@@ -12,89 +12,83 @@ from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
 
 from sensor_msgs.msg import JointState
 
+DEFAULT_IK_SERVICE = "ExternalTools/right/PositionKinematicsNode/IKService"
+
 class beerGrabber():
     def __init__(self):
-
+        rospy.loginfo("Initializing beerGrabber")
+        self.ik_service_name = DEFAULT_IK_SERVICE
+        self.ik_serv = rospy.ServiceProxy(self.ik_service_name, SolvePositionIK)
+        self.ik_serv.wait_for_service()
+        rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
 
     def getTargetEEF():
     # no Input
     # Output: target position in Cartesian Space (from vision)
     # TODO: implement after vision group done
 
-    def convertToJointStates(self,pose):
+    def convertToJointStates(self, target):
     # inpout: Cartesian position of target
     # output: JointState of target
-        ns = "ExternalTools/" + limb + "/PositionKinematicsNode/IKService"
-        iksvc = rospy.ServiceProxy(ns, SolvePositionIK)
+
         ikreq = SolvePositionIKRequest()
-        hdr = Header(stamp=rospy.Time.now(), frame_id='base')
+
+        p = PoseStamped()
+        p.header = Header(stamp=rospy.Time.now(), frame_id='base')
+        p.pose = target
 
         # Add desired pose for inverse kinematics
-        ikreq.pose_stamp.append(poses[limb])
+        ikreq.pose_stamp.append(p)
         # Request inverse kinematics from base to "right_hand" link
         ikreq.tip_names.append('right_hand')
 
-        if (use_advanced_options):
-            # Optional Advanced IK parameters
-            rospy.loginfo("Running Advanced IK Service Client example.")
-            # The joint seed is where the IK position solver starts its optimization
-            ikreq.seed_mode = ikreq.SEED_USER
-            seed = JointState()
-            seed.name = ['right_j0', 'right_j1', 'right_j2', 'right_j3',
-                         'right_j4', 'right_j5', 'right_j6']
-            seed.position = [0.7, 0.4, -1.7, 1.4, -1.1, -1.6, -0.4]
-            ikreq.seed_angles.append(seed)
+        resp = self.ik_serv.call(ikreq)
 
-            # Once the primary IK task is solved, the solver will then try to bias the
-            # the joint angles toward the goal joint configuration. The null space is
-            # the extra degrees of freedom the joints can move without affecting the
-            # primary IK task.
-            ikreq.use_nullspace_goal.append(True)
-            # The nullspace goal can either be the full set or subset of joint angles
-            goal = JointState()
-            goal.name = ['right_j1', 'right_j2', 'right_j3']
-            goal.position = [0.1, -0.3, 0.5]
-            ikreq.nullspace_goal.append(goal)
-            # The gain used to bias toward the nullspace goal. Must be [0.0, 1.0]
-            # If empty, the default gain of 0.4 will be used
-            ikreq.nullspace_gain.append(0.4)
-        else:
-            rospy.loginfo("Running Simple IK Service Client example.")
-
-        try:
-            rospy.wait_for_service(ns, 5.0)
-            resp = iksvc(ikreq)
-        except (rospy.ServiceException, rospy.ROSException), e:
-            rospy.logerr("Service call failed: %s" % (e,))
-            return False
-
-        # Check if result valid, and type of seed ultimately used to get solution
-        if (resp.result_type[0] > 0):
-            seed_str = {
-                        ikreq.SEED_USER: 'User Provided Seed',
-                        ikreq.SEED_CURRENT: 'Current Joint Angles',
-                        ikreq.SEED_NS_MAP: 'Nullspace Setpoints',
-                       }.get(resp.result_type[0], 'None')
-            rospy.loginfo("SUCCESS - Valid Joint Solution Found from Seed Type: %s" %
-                  (seed_str,))
-            # Format solution into Limb API-compatible dictionary
-            limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))convertToJointStates(self,limb = "right", use_advanced_options = True, pose)
-
-            rospy.loginfo("\nIK Joint Solution:\n%s", limb_joints)
-            rospy.loginfo("------------------")
-            rospy.loginfo("Response Message:\n%s", resp)
-        else:
-            rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
-            rospy.logerr("Result Error %d", resp.result_type[0])
-            return False
+        # TODO: what result it checked?
+        # whether the IK will always give us a valid solution without goal JointState values
+        # Check if result valid
+        # if (resp.result_type[0] > 0):
+        #
+        #     rospy.loginfo("SUCCESS - Valid Joint Solution Found")
+        #     # Format solution into Limb API-compatible dictionary
+        #     limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
+        #
+        #     rospy.loginfo("\nIK Joint Solution:\n%s", limb_joints)
+        #     rospy.loginfo("------------------")
+        #     rospy.loginfo("Response Message:\n%s", resp)
+        # else:
+        #     rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
+        #     rospy.logerr("Result Error %d", resp.result_type[0])
+        #     return False
 
         # TODO: modify resp return values to include all seven
-        return resp
+        target_js = [resp.joints.position[0],
+                        resp.joints.position[1],
+                        resp.joints.position[2],
+                        resp.joints.position[3],
+                        resp.joints.position[4],
+                        resp.joints.position[5],
+                        resp.joints.position[6]]
+
+        return target_js
 
     def addCollisionObjects(self):
     # input: description of the object
     # output: none
-    # scene.add_box
+    # TODO: build a dictionary of objects - table, fridge, bottle
+    # scene.add_box("box", p, (1.68, 1.22, 0.86))
+
+    # TODO: add color
+        # table scene
+        p = PoseStamped()
+        p.header.frame_id = robot.get_planning_frame()
+        p.pose.position.x = 1.0
+        p.pose.position.y = 1.0
+        p.pose.position.z = -0.211
+        scene.add_box("table", p, (1.22 0.76 0.022))
+
+        # fridge scene()
+
 
     def checkValidation(self,):
     ## check the JointState of target configuration,
@@ -136,29 +130,13 @@ if __name__=='__main__':
     #pose_target = bg.getTargetEEF()
 
     # test point in Cartesian Space
-    # pose_target = geometry_msgs.msg.Pose()
-    # pose_target.orientation.w = 2.0
-    # pose_target.position.x = 0.7
-    # pose_target.position.y = -0.05
-    # pose_target.position.z = 1.1
-    pose_target = {
-        'right': PoseStamped(
-            header=hdr,
-            pose=Pose(
-                position=Point(
-                    x=0.7,
-                    y=-0.05,
-                    z=1.1,
-                ),
-                orientation=Quaternion(
-                    x=0.0,
-                    y=0.0,
-                    z=0.0,
-                    w=2.0,
-                ),
-            ),
-        ),
-    }
+    pose_target = Pose()
+    pose_target.orientation.w = 2.0
+    pose_target.position.x = 0.7
+    pose_target.position.y = -0.05
+    pose_target.position.z = 1.1
+
+
     # get target in JointState
     target_js = bg.generateValidTargetJointState(pose_target)
 
