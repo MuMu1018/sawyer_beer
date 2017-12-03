@@ -3,10 +3,11 @@
 import sys
 import copy
 import rospy
+import random
 import moveit_commander
 import moveit_msgs.msg
 
-import geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
+from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import Header, String
 from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
 
@@ -23,9 +24,10 @@ class beerGrabber():
         rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
 
     def getTargetEEF():
-    # no Input
+    # Input: None
     # Output: target position in Cartesian Space (from vision)
     # TODO: implement after vision group done
+        return true
 
     def convertToJointStates(self, target):
     # inpout: Cartesian position of target
@@ -42,7 +44,28 @@ class beerGrabber():
         # Request inverse kinematics from base to "right_hand" link
         ikreq.tip_names.append('right_hand')
 
+        ikreq.seed_mode = ikreq.SEED_USER
+        seed = JointState()
+        seed.name = ['right_j0', 'right_j1', 'right_j2', 'right_j3',
+                     'right_j4', 'right_j5', 'right_j6']
+        j1 = random.randint(50,340)/100.0
+        # j1 range 0.5 to 3.4
+        seed.position = [j1, 0.4, -1.7, 1.4, -1.1, -1.6, -0.4]
+        ikreq.seed_angles.append(seed)
+
         resp = self.ik_serv.call(ikreq)
+
+        while resp.result_type[0] <= 0:
+            j1 = random.randint(50,340)/100.0
+            seed.position = [j1, 0.4, -1.7, 1.4, -1.1, -1.6, -0.4]
+            ikreq.seed_angles.append(seed)
+            resp = self.ik_serv.call(ikreq)
+
+        rospy.loginfo("SUCCESS - Valid Joint Solution Found")
+        limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
+        rospy.loginfo("\nIK Joint Solution:\n%s", limb_joints)
+        rospy.loginfo("------------------")
+        rospy.loginfo("Response Message:\n%s", resp)
 
         # TODO: what result it checked?
         # whether the IK will always give us a valid solution without goal JointState values
@@ -61,14 +84,19 @@ class beerGrabber():
         #     rospy.logerr("Result Error %d", resp.result_type[0])
         #     return False
 
-        # TODO: modify resp return values to include all seven
-        target_js = [resp.joints.position[0],
-                        resp.joints.position[1],
-                        resp.joints.position[2],
-                        resp.joints.position[3],
-                        resp.joints.position[4],
-                        resp.joints.position[5],
-                        resp.joints.position[6]]
+        # print "let's see the resp"
+        # print resp
+
+        target_js = [resp.joints[0].position[0],
+                        resp.joints[0].position[1],
+                        resp.joints[0].position[2],
+                        resp.joints[0].position[3],
+                        resp.joints[0].position[4],
+                        resp.joints[0].position[5],
+                        resp.joints[0].position[6]]
+
+        # print "let's see the target_js"
+        # print target_js
 
         return target_js
 
@@ -85,12 +113,12 @@ class beerGrabber():
         p.pose.position.x = 1.0
         p.pose.position.y = 1.0
         p.pose.position.z = -0.211
-        scene.add_box("table", p, (1.22 0.76 0.022))
+        #scene.add_box("table", p, (1.22 0.76 0.022))
 
         # fridge scene()
 
 
-    def checkCollisions(self,):
+    def checkCollisions(self,target):
     ## check the JointState of target configuration,
     # input: JointState of the target configuration
     # output: return True when there is collision
@@ -100,7 +128,7 @@ class beerGrabber():
     # input: target in Cartesian Space
     # output: valid target in JointState (a list of 7 numbers)
         target = self.convertToJointStates(pose)
-        while checkCollisions(target):
+        while self.checkCollisions(target):
             target = self.convertToJointStates(pose)
         return target
 
@@ -132,14 +160,32 @@ if __name__=='__main__':
 
     # test point in Cartesian Space
     pose_target = Pose()
-    pose_target.orientation.w = 2.0
-    pose_target.position.x = 0.7
-    pose_target.position.y = -0.05
-    pose_target.position.z = 1.1
-
+    pose_target.orientation.x=0.0
+    pose_target.orientation.y=-1.0
+    pose_target.orientation.z=0.0
+    pose_target.orientation.w = -1.0
+    pose_target.position.x = 0.309927978406
+    pose_target.position.y = -0.542434554721
+    pose_target.position.z = 0.0147707694269
 
     # get target in JointState
     target_js = bg.generateValidTargetJointState(pose_target)
+
+    # # test whether every time IK solver will give out different solution
+    # pose1 = bg.convertToJointStates(pose_target)
+    # pose2 = bg.convertToJointStates(pose_target)
+    # pose3 = bg.convertToJointStates(pose_target)
+    # pose4 = bg.convertToJointStates(pose_target)
+    # print "pose 1:"
+    # print pose1
+    # print "pose 2:"
+    # print pose2
+    # print "pose 3:"
+    # print pose3
+    # print "pose 4:"
+    # print pose4
+
+
 
     # set target
     group.set_joint_value_target(target_js)
