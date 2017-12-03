@@ -16,7 +16,10 @@ from sensor_msgs.msg import JointState
 DEFAULT_IK_SERVICE = "ExternalTools/right/PositionKinematicsNode/IKService"
 
 class beerGrabber():
+
     def __init__(self):
+        self.right_arm = ['right_j0', 'right_j1', 'right_j2', 'right_j3',
+                     'right_j4', 'right_j5', 'right_j6']
         rospy.loginfo("Initializing beerGrabber")
         self.ik_service_name = DEFAULT_IK_SERVICE
         self.ik_serv = rospy.ServiceProxy(self.ik_service_name, SolvePositionIK)
@@ -24,15 +27,22 @@ class beerGrabber():
         rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
 
     def getTargetEEF():
-    # Input: None
-    # Output: target position in Cartesian Space (from vision)
-    # TODO: implement after vision group done
+        """
+        Get the target position in Cartesian Space from vision node
+
+        @return type: returns Pose() msg
+        """
+        # TODO: implement after vision group done
+
         return true
 
     def convertToJointStates(self, target):
-    # inpout: Cartesian position of target
-    # output: JointState of target
+        """
+        Using IK solver to convert the target position to Joint Space from Cartesian Space
 
+        @param target: Pose() msg to be converted
+        @return type: returns a list of joint values
+        """
         ikreq = SolvePositionIKRequest()
 
         p = PoseStamped()
@@ -44,48 +54,34 @@ class beerGrabber():
         # Request inverse kinematics from base to "right_hand" link
         ikreq.tip_names.append('right_hand')
 
+        # The joint seed is where the IK position solver starts its optimization
         ikreq.seed_mode = ikreq.SEED_USER
         seed = JointState()
-        seed.name = ['right_j0', 'right_j1', 'right_j2', 'right_j3',
-                     'right_j4', 'right_j5', 'right_j6']
+        seed.name = self.right_arm
+        # use random numbers to get different solutions
         j1 = random.randint(50,340)/100.0
         # j1 range 0.5 to 3.4
         seed.position = [j1, 0.4, -1.7, 1.4, -1.1, -1.6, -0.4]
         ikreq.seed_angles.append(seed)
 
+        # get the response from IK solver Service
         resp = self.ik_serv.call(ikreq)
 
+        # reassgin a random value to joint seed if fail to get the valid solution
         while resp.result_type[0] <= 0:
             j1 = random.randint(50,340)/100.0
             seed.position = [j1, 0.4, -1.7, 1.4, -1.1, -1.6, -0.4]
             ikreq.seed_angles.append(seed)
             resp = self.ik_serv.call(ikreq)
 
+        # message print out
         rospy.loginfo("SUCCESS - Valid Joint Solution Found")
         limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
         rospy.loginfo("\nIK Joint Solution:\n%s", limb_joints)
         rospy.loginfo("------------------")
         rospy.loginfo("Response Message:\n%s", resp)
 
-        # TODO: what result it checked?
-        # whether the IK will always give us a valid solution without goal JointState values
-        # Check if result valid
-        # if (resp.result_type[0] > 0):
-        #
-        #     rospy.loginfo("SUCCESS - Valid Joint Solution Found")
-        #     # Format solution into Limb API-compatible dictionary
-        #     limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
-        #
-        #     rospy.loginfo("\nIK Joint Solution:\n%s", limb_joints)
-        #     rospy.loginfo("------------------")
-        #     rospy.loginfo("Response Message:\n%s", resp)
-        # else:
-        #     rospy.logerr("INVALID POSE - No Valid Joint Solution Found.")
-        #     rospy.logerr("Result Error %d", resp.result_type[0])
-        #     return False
-
-        # print "let's see the resp"
-        # print resp
+        # rospy.logdebug("Response message: " + str(resp))
 
         target_js = [resp.joints[0].position[0],
                         resp.joints[0].position[1],
@@ -95,8 +91,7 @@ class beerGrabber():
                         resp.joints[0].position[5],
                         resp.joints[0].position[6]]
 
-        # print "let's see the target_js"
-        # print target_js
+        # rospy.logdebug("Target value: " + str(target_js))
 
         return target_js
 
@@ -107,26 +102,63 @@ class beerGrabber():
     # scene.add_box("box", p, (1.68, 1.22, 0.86))
 
     # TODO: add color
+        # measurement of the world - check the sawyer_scene/fridge_closed_door.scene
+        # f_length = 0.39
+        # f_width = 0.47
+        # f_height = 0.46
+        # f_thickness = 0.03
+        # f_d_thickness = 0.04
+        # t_length = 1.22
+        # t_width = 0.76
+        # t_height, from base of the sawyer to the top of the table
+        # t_height = -0.2
+        # t_thickness = 0.022
+        # f_b_height: from top of table to bot of fridge
+        # f_b_height = 0.015
+        # handle
+        #
+
+        # center of the ridge_bot
+        x = 0.74
+        y = -0.92
+        z = 0.17
+
         # table scene
         p = PoseStamped()
         p.header.frame_id = robot.get_planning_frame()
         p.pose.position.x = 1.0
         p.pose.position.y = 1.0
         p.pose.position.z = -0.211
+
+        # fridge scene
+        f_b = PoseStamped()
+        f_b.header.frame_id = robot.get_planning_frame()
+        f_b.pose.position.x = x
+        f_b.pose.position.y = y
+        f_b.pose.position.z = z
+
+        f_t = PoseStamped()
+        f_t.header.frame_id = robot.get_planning_frame()
+        f_t.pose.position.x = x
+        f_t.pose.position.y = y
+        f_t.pose.position.z = z + 0.46 - f_thickness
+
+        # TODO: add more scenes about the fridge
+
         #scene.add_box("table", p, (1.22 0.76 0.022))
-
-        # fridge scene()
-
+        
 
     def checkCollisions(self,target):
-    ## check the JointState of target configuration,
-    # input: JointState of the target configuration
-    # output: return True when there is collision
+        """
+        Given a target position in JointState and check whether there is collision
+
+        @param target: JointState() msg to be checked
+        @return type: returns False when there is no collision
+        """
         return False
 
     def generateValidTargetJointState(self,pose):
-    # input: target in Cartesian Space
-    # output: valid target in JointState (a list of 7 numbers)
+        """Generate a valid target position in Joint Space and returns a list"""
         target = self.convertToJointStates(pose)
         while self.checkCollisions(target):
             target = self.convertToJointStates(pose)
@@ -154,6 +186,7 @@ if __name__=='__main__':
 
     # add collision Objects
     bg.addCollisionObjects()
+    #scene.add_box("table", p, (1.22 0.76 0.022))
 
     # get target in Cartesian
     #pose_target = bg.getTargetEEF()
@@ -171,22 +204,6 @@ if __name__=='__main__':
     # get target in JointState
     target_js = bg.generateValidTargetJointState(pose_target)
 
-    # # test whether every time IK solver will give out different solution
-    # pose1 = bg.convertToJointStates(pose_target)
-    # pose2 = bg.convertToJointStates(pose_target)
-    # pose3 = bg.convertToJointStates(pose_target)
-    # pose4 = bg.convertToJointStates(pose_target)
-    # print "pose 1:"
-    # print pose1
-    # print "pose 2:"
-    # print pose2
-    # print "pose 3:"
-    # print pose3
-    # print "pose 4:"
-    # print pose4
-
-
-
     # set target
     group.set_joint_value_target(target_js)
 
@@ -195,3 +212,5 @@ if __name__=='__main__':
 
     # execute plan
     group.go(wait=True)
+
+    moveit_commander.roscpp_shutdown()
