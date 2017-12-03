@@ -1,0 +1,6 @@
+<launch>
+    <param name="stage" value="0" />
+	<include file="$(find sawyer_beer)/launch/ar.launch"/>
+
+
+</launch>

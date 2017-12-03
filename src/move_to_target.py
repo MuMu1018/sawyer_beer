@@ -13,30 +13,34 @@ from sensor_msgs.msg import JointState
 
 class beerGrabber():
     def __init__(self):
+        pass
 
-
-    def getTargetEEF():
+    def getTargetEEF(self):
     # no Input
     # Output: target position in Cartesian Space (from vision)
     # TODO: implement after vision group done
+        pass
 
     def convertToJointStates(self,pose):
     # inpout: Cartesian position of target
     # output: JointState of target
+        pass
 
     def addCollisionObjects(self):
     # input: description of the object
     # output: none
     # scene.add_box
+        pass
 
     def checkValidation(self,):
     ## check the JointState of target configuration,
     # input: JointState of the target configuration
     # output: True or False
+        pass
 
     def generateValidTargetJointState(self,pose):
-    # input: target in Cartesian Space
-    # output: valid target in JointState (a list of 7 numbers)
+        # input: target in Cartesian Space
+        # output: valid target in JointState (a list of 7 numbers)
         target = self.convertToJointStates(pose)
         while not checkValidation(target):
             target = self.convertToJointStates(pose)
@@ -48,7 +52,7 @@ if __name__=='__main__':
     moveit_commander.roscpp_initialize(sys.argv)
 
     rospy.init_node('move_to_target',
-                     anonymous=True)
+                    anonymous=True)
     robot = moveit_commander.RobotCommander()
 
     scene = moveit_commander.PlanningSceneInterface()
@@ -56,9 +60,9 @@ if __name__=='__main__':
     group = moveit_commander.MoveGroupCommander("right_arm")
 
     display_trajectory_publisher = rospy.Publisher(
-                                         '/move_group/display_planned_path',
-                                         moveit_msgs.msg.DisplayTrajectory,
-                                         queue_size = 10)
+        '/move_group/display_planned_path',
+        moveit_msgs.msg.DisplayTrajectory,
+        queue_size = 10)
 
     bg = beerGrabber()
 
