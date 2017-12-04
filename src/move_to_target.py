@@ -11,20 +11,38 @@ from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import Header, String
 from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
 
+from moveit_msgs.srv import GetStateValidity, GetStateValidityRequest, GetStateValidityResponse
+
 from sensor_msgs.msg import JointState
 
 DEFAULT_IK_SERVICE = "ExternalTools/right/PositionKinematicsNode/IKService"
+DEFAULT_CHECK_SERVICE = "check_state_validity"
 
 class beerGrabber():
 
     def __init__(self):
+        # let's create MoveIt! objects:
+        self.scene = moveit_commander.PlanningSceneInterface()
+        self.robot = moveit_commander.RobotCommander()
+        self.group = moveit_commander.MoveGroupCommander("right_arm")
+        
+
         self.right_arm = ['right_j0', 'right_j1', 'right_j2', 'right_j3',
                      'right_j4', 'right_j5', 'right_j6']
         rospy.loginfo("Initializing beerGrabber")
+
+        # ik service
         self.ik_service_name = DEFAULT_IK_SERVICE
         self.ik_serv = rospy.ServiceProxy(self.ik_service_name, SolvePositionIK)
         self.ik_serv.wait_for_service()
         rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
+
+        # check state service
+        self.check_service_name = DEFAULT_CHECK_SERVICE
+        self.check_serv = rospy.ServiceProxy(self.check_service_name, GetStateValidity)
+        self.check_serv.wait_for_service()
+        rospy.loginfo("Successful connection to '" + self.check_service_name + "'.")
+
 
     def getTargetEEF():
         """
@@ -76,9 +94,6 @@ class beerGrabber():
 
         # message print out
         rospy.loginfo("SUCCESS - Valid Joint Solution Found")
-        limb_joints = dict(zip(resp.joints[0].name, resp.joints[0].position))
-        rospy.loginfo("\nIK Joint Solution:\n%s", limb_joints)
-        rospy.loginfo("------------------")
         rospy.loginfo("Response Message:\n%s", resp)
 
         # rospy.logdebug("Response message: " + str(resp))
@@ -119,98 +134,101 @@ class beerGrabber():
         #
 
         # center of the ridge_bot
-        x = 0.74
-        y = -0.92
-        z = 0.17
+        # x = 0.74
+        # y = -0.92
+        # z = 0.17
 
         # table scene
         p = PoseStamped()
-        p.header.frame_id = robot.get_planning_frame()
+        p.header.frame_id = self.robot.get_planning_frame()
         p.pose.position.x = 1.0
         p.pose.position.y = 1.0
         p.pose.position.z = -0.211
 
-        # fridge scene
-        f_b = PoseStamped()
-        f_b.header.frame_id = robot.get_planning_frame()
-        f_b.pose.position.x = x
-        f_b.pose.position.y = y
-        f_b.pose.position.z = z
+        self.scene.add_box("table", p, (1.22,0.76,0.022))
 
-        f_t = PoseStamped()
-        f_t.header.frame_id = robot.get_planning_frame()
-        f_t.pose.position.x = x
-        f_t.pose.position.y = y
-        f_t.pose.position.z = z + 0.46 - f_thickness
+        # # fridge scene
+        # f_b = PoseStamped()
+        # f_b.header.frame_id = robot.get_planning_frame()
+        # f_b.pose.position.x = x
+        # f_b.pose.position.y = y
+        # f_b.pose.position.z = z
+        #
+        # f_t = PoseStamped()
+        # f_t.header.frame_id = robot.get_planning_frame()
+        # f_t.pose.position.x = x
+        # f_t.pose.position.y = y
+        # f_t.pose.position.z = z + 0.46 - f_thickness
 
         # TODO: add more scenes about the fridge
 
-        #scene.add_box("table", p, (1.22 0.76 0.022))
-        
+
+
+        return
+
 
     def checkCollisions(self,target):
         """
         Given a target position in JointState and check whether there is collision
 
-        @param target: JointState() msg to be checked
-        @return type: returns False when there is no collision
+        @param target: a list of joints value to be checked
+        @return type: returns True when it is valid
         """
-        return False
+        req = GetStateValidityRequest()
+        req.robot_state.joint_state.name = self.group.get_active_joints()
+        req.robot_state.joint_state.position = target
+        resp = self.check_serv(req)
+        print "Is target valid?", resp.valid
+        return resp.valid
 
     def generateValidTargetJointState(self,pose):
         """Generate a valid target position in Joint Space and returns a list"""
         target = self.convertToJointStates(pose)
-        while self.checkCollisions(target):
+        while not self.checkCollisions(target):
             target = self.convertToJointStates(pose)
         return target
 
+    def testPlan(self,target):
+        print "test PLan:"
+        # set target
+        self.group.set_joint_value_target(target)
+        # generate plan
+        plan = self.group.plan()
+        print plan
+        # execute plan
+        self.group.go()
+        print "done!"
 
 
 if __name__=='__main__':
     moveit_commander.roscpp_initialize(sys.argv)
 
-    rospy.init_node('move_to_target',
-                     anonymous=True)
-    robot = moveit_commander.RobotCommander()
+    rospy.init_node('move_to_target',anonymous=True)
 
-    scene = moveit_commander.PlanningSceneInterface()
+    try:
 
-    group = moveit_commander.MoveGroupCommander("right_arm")
+        bg = beerGrabber()
 
-    display_trajectory_publisher = rospy.Publisher(
-                                         '/move_group/display_planned_path',
-                                         moveit_msgs.msg.DisplayTrajectory,
-                                         queue_size = 10)
+        # add collision Objects
+        bg.addCollisionObjects()
+        #scene.add_box("table", p, (1.22 0.76 0.022))
 
-    bg = beerGrabber()
+        # get target in Cartesian
+        #pose_target = bg.getTargetEEF()
 
-    # add collision Objects
-    bg.addCollisionObjects()
-    #scene.add_box("table", p, (1.22 0.76 0.022))
+        # test point in Cartesian Space
+        pose_target = Pose()
+        pose_target.orientation.x=0.0
+        pose_target.orientation.y=-1.0
+        pose_target.orientation.z=0.0
+        pose_target.orientation.w = -1.0
+        pose_target.position.x = 0.309927978406
+        pose_target.position.y = -0.542434554721
+        pose_target.position.z = 0.0147707694269
 
-    # get target in Cartesian
-    #pose_target = bg.getTargetEEF()
+        # get target in JointState
+        target_js = bg.generateValidTargetJointState(pose_target)
 
-    # test point in Cartesian Space
-    pose_target = Pose()
-    pose_target.orientation.x=0.0
-    pose_target.orientation.y=-1.0
-    pose_target.orientation.z=0.0
-    pose_target.orientation.w = -1.0
-    pose_target.position.x = 0.309927978406
-    pose_target.position.y = -0.542434554721
-    pose_target.position.z = 0.0147707694269
+        bg.testPlan(target_js)
 
-    # get target in JointState
-    target_js = bg.generateValidTargetJointState(pose_target)
-
-    # set target
-    group.set_joint_value_target(target_js)
-
-    # generate plan
-    plan = group.plan()
-
-    # execute plan
-    group.go(wait=True)
-
-    moveit_commander.roscpp_shutdown()
+    except rospy.ROSInterruptException: pass
