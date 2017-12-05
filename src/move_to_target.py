@@ -203,6 +203,35 @@ class beerGrabber():
         self.group.go()
         print "done!"
 
+    def gripAct():
+        ## Gripper
+        rospy.sleep(2)
+        side="right"
+        grip_name = '_'.join([side, 'gripper'])
+        gripper_io = IODeviceInterface("end_effector", grip_name)
+
+        if gripper_io.get_signal_value("is_calibrated") != True:
+            gripper_io.set_signal_value("calibrate", True)
+
+        ## grabbing bottle
+        gripper_io.set_signal_value("speed_mps", 1)
+
+        gripper_io.set_signal_value("position_m", 0.003)
+
+        rospy.sleep(1)
+        ## if object is detected
+        if gripper_io.get_signal_value("is_gripping") != True:
+            print "Not stable!"
+            light_force = gripper_io.get_signal_value("force_response_n")
+            print "risky force is: ", light_force
+            gripper_io.set_signal_value("position_m", 0.00)
+            
+        # get true force and obejct size responses
+        force = gripper_io.get_signal_value("force_response_n")
+        obj_size = gripper_io.get_signal_value("position_response_m")
+        print "force is: ", force
+        print "object size is: ", obj_size
+
 
 if __name__=='__main__':
     moveit_commander.roscpp_initialize(sys.argv)
@@ -234,34 +263,9 @@ if __name__=='__main__':
         target_js = bg.generateValidTargetJointState(pose_target)
 
         bg.testPlan(target_js)
-
-        ## Gripper
-        rospy.sleep(2)
-        side="right"
-        grip_name = '_'.join([side, 'gripper'])
-        gripper_io = IODeviceInterface("end_effector", grip_name)
-
-        if gripper_io.get_signal_value("is_calibrated") != True:
-            gripper_io.set_signal_value("calibrate", True)
-
-        ## grabbing bottle
-        gripper_io.set_signal_value("speed_mps", 1)
-
-        ## if object is detected
-        gripper_io.set_signal_value("position_m", 0.003)
-
-        light_force = gripper_io.get_signal_value("force_response_n")
-        print "risky force is: ", light_force
-
-        rospy.sleep(2)
-        if gripper_io.get_signal_value("is_gripping") != True:
-            gripper_io.set_signal_value("position_m", 0.00)
-            print "Not stable!"
-
-        force = gripper_io.get_signal_value("force_response_n")
-        obj_size = gripper_io.get_signal_value("position_response_m")
-        print "force is: ", force
-        print "object size is: ", obj_size
+        
+        # start gripping
+        bg.gripAct()
 
         ## move to a new location
         pose_target = Pose()
