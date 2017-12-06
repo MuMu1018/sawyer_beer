@@ -14,6 +14,10 @@ from moveit_msgs.srv import GetStateValidity, GetStateValidityRequest, GetStateV
 
 from sensor_msgs.msg import JointState
 
+import intera_dataflow
+from intera_io import IODeviceInterface
+from intera_core_msgs.msg import IONodeConfiguration
+
 DEFAULT_IK_SERVICE = "ExternalTools/right/PositionKinematicsNode/IKService"
 DEFAULT_CHECK_SERVICE = "check_state_validity"
 DEFAULT_GET_TARGET = "/ar_pose_marker"
@@ -43,8 +47,9 @@ class beerGrabber():
         rospy.loginfo("Successful connection to '" + self.check_service_name + "'.")
 
         # initiate gripper
-        self.grip_name = 'right_gripper'
-        self.gripper_io = IODeviceInterface("end_effector", self.grip_name)
+        side="right"
+        grip_name = '_'.join([side, 'gripper'])
+        self.gripper_io = IODeviceInterface("end_effector", grip_name)
 
 
     def getTargetEEF():
@@ -202,15 +207,20 @@ class beerGrabber():
         ## Gripper
         self.gripper_io.set_signal_value("position_m", 0.041)
         rospy.sleep(2)
+        # side="right"
+        # grip_name = '_'.join([side, 'gripper'])
+        # gripper_io = IODeviceInterface("end_effector", grip_name)
 
         if self.gripper_io.get_signal_value("is_calibrated") != True:
             self.gripper_io.set_signal_value("calibrate", True)
 
         ## grabbing bottle
         self.gripper_io.set_signal_value("speed_mps", 1)
-        #self.gripper_io.set_signal_value("holding_force_n", 10)
+        
 
         self.gripper_io.set_signal_value("position_m", 0.01)
+        light_size = self.gripper_io.get_signal_value("position_response_m")
+        print "realeasing size is: ", light_size
 
         rospy.sleep(1)
         ## if object is detected
@@ -218,8 +228,9 @@ class beerGrabber():
             print "Not stable!"
             light_force = self.gripper_io.get_signal_value("force_response_n")
             print "risky force is: ", light_force
-            self.gripper_io.set_signal_value("position_m", 0.00)
 
+            self.gripper_io.set_signal_value("position_m", 0.00)
+        
         # get true force and obejct size responses
         force = self.gripper_io.get_signal_value("force_response_n")
         obj_size = self.gripper_io.get_signal_value("position_response_m")
@@ -227,9 +238,11 @@ class beerGrabber():
         print "object size is: ", obj_size
 
     def gripRelease(self):
+        touch_size = self.gripper_io.get_signal_value("position_response_m")
         if self.gripper_io.get_signal_value("is_gripping"):
-            self.gripper_io.set_signal_value("position_m", 0.041)
-            print "releasing!"
+            print touch_size
+            print "Releasing bottle!"
+            self.gripper_io.set_signal_value("position_m", 0.017)
 
 if __name__=='__main__':
     moveit_commander.roscpp_initialize(sys.argv)
@@ -290,5 +303,5 @@ if __name__=='__main__':
         # final_force = gripper_io.get_signal_value("force_response_n")
         # print "final force is: ", final_force
 
-        except rospy.ROSInterruptException:
-            pass
+    except rospy.ROSInterruptException:
+        pass
