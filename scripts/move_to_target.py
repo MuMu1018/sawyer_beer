@@ -19,6 +19,8 @@ import intera_dataflow
 from intera_io import IODeviceInterface
 from intera_core_msgs.msg import IONodeConfiguration
 
+from collision_objs import collisionObjects
+
 DEFAULT_IK_SERVICE = "ExternalTools/right/PositionKinematicsNode/IKService"
 DEFAULT_CHECK_SERVICE = "check_state_validity"
 DEFAULT_GET_TARGET = "/ar_pose_marker"
@@ -60,8 +62,8 @@ class beerGrabber():
         self.gripper_io = IODeviceInterface("end_effector", grip_name)
 
         # add target position - might be useful when add bottle in the scene
-        self.target = Pose()
-
+        self.target = PoseStamped()
+        self.dict = collisionObjects()
 
     def getTargetEEF(self):
         """
@@ -89,9 +91,8 @@ class beerGrabber():
         p.pose = target
         print "========= target 0 ========="
         print target
-        self.target.position.x = p.pose.position.x
-        self.target.position.y = p.pose.position.y
-        self.target.position.z = p.pose.position.z
+        # add target position - might be useful when add bottle in the scene
+        self.target = p
         # Add desired pose for inverse kinematics
         ikreq.pose_stamp.append(p)
         # Request inverse kinematics from base to "right_hand" link
@@ -102,6 +103,7 @@ class beerGrabber():
         seed = JointState()
         seed.name = self.right_arm
         # use random numbers to get different solutions
+        # TODO: how to define the limitation
         j1 = random.randint(50,340)/100.0
         j2 = random.randint(40,300)/100.0
         j3 = random.randint(-180,140)/100.0
@@ -130,7 +132,6 @@ class beerGrabber():
 
         # message print out
         rospy.loginfo("SUCCESS - Valid Joint Solution Found")
-        # rospy.loginfo("Response Message:\n%s", resp)
 
         # rospy.logdebug("Response message: " + str(resp))
 
@@ -146,46 +147,24 @@ class beerGrabber():
 
         return target_js
 
-    def addCollisionObjects(self):
-        # input: description of the object
-        # output: none
-        # TODO: build a dictionary of objects - table, fridge, bottle
-        # scene.add_box("box", p, (1.68, 1.22, 0.86))
-
+    def addCollisionObjects(self,name=[""],p=PoseStamped(),p_size=size):
         # TODO: add color
-        # measurement of the world - check the sawyer_scene/fridge_closed_door.scene
-        # f_length = 0.39
-        # f_width = 0.47
-        # f_height = 0.46
-        # f_thickness = 0.03
-        # f_d_thickness = 0.04
-        # t_length = 1.22
-        # t_width = 0.76
-        # t_height, from base of the sawyer to the top of the table
-        # t_height = -0.2
-        # t_thickness = 0.022
-        # f_b_height: from top of table to bot of fridge
-        # f_b_height = 0.015
-        # handle
-        #
-
-        # center of the ridge_bot
-        # x = 0.74
-        # y = -0.92
-        # z = 0.17
-
         rospy.sleep(5)
-        # table scene
-        self.scene.remove_world_object("table")
-        p = PoseStamped()
-        p.header.frame_id = self.robot.get_planning_frame()
-        p.pose.position.x = 0.0
-        p.pose.position.y = -1.0
-        p.pose.position.z = -0.211
 
-        self.scene.add_box("table", p, (2.24,1.5,0.03))
+        for n in name:
+            # clear world
+            self.scene.remove_world_object(name)
+            # read pose() and size data
+            if name in self.dict.obj_pose_dict:
+                p = self.dict.obj_pose_dict[name]
+            if name in self.dict.obj_size_dict:
+                p_size = self.dict.obj_size_dict[name]
+            # set header.frame_id
+            p.header.frame_id = self.robot.get_planning_frame()
+            # add to scene
+            self.scene.add_box(name, p, p_size)
 
-        print "Add table!"
+            rospy.loginfo("Add: " + str(name) + " !")
 
         # # bottle scene
         # self.scene.remove_world_object("bottle")
@@ -196,21 +175,6 @@ class beerGrabber():
         # p_b.pose.position.z = self.target.position.z
         #
         # self.scene.add_box("table", p_b, (0.06,0.06,0.12))
-
-        # # fridge scene
-        # f_b = PoseStamped()
-        # f_b.header.frame_id = robot.get_planning_frame()
-        # f_b.pose.position.x = x
-        # f_b.pose.position.y = y
-        # f_b.pose.position.z = z
-        #
-        # f_t = PoseStamped()
-        # f_t.header.frame_id = robot.get_planning_frame()
-        # f_t.pose.position.x = x
-        # f_t.pose.position.y = y
-        # f_t.pose.position.z = z + 0.46 - f_thickness
-
-        # TODO: add more scenes about the fridge
 
         return
 
@@ -297,7 +261,8 @@ if __name__=='__main__':
         bg = beerGrabber()
 
         # add collision Objects
-        bg.addCollisionObjects()
+        obj_name = ["table","fridge_back","fridge_top","fridge_left","fridge_right","fridge_bottom"]
+        bg.addCollisionObjects(obj_name)
 
         # get target in Cartesian - Camera
         pose_target = bg.getTargetEEF()
@@ -325,6 +290,9 @@ if __name__=='__main__':
 
         # get target in JointState
         target_js = bg.generateValidTargetJointState(pose_target)
+
+        bottle = PoseStamped()
+        bg.addCollisionObjects(“bottle1”,bottle)
 
         bg.testPlan(target_js)
 
