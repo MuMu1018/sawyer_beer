@@ -7,6 +7,7 @@ import random
 import moveit_commander
 import moveit_msgs.msg
 
+from sawyer_beer.srv import target, targetResponse, targetRequest
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import Header, String
 from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
@@ -21,6 +22,7 @@ from intera_core_msgs.msg import IONodeConfiguration
 DEFAULT_IK_SERVICE = "ExternalTools/right/PositionKinematicsNode/IKService"
 DEFAULT_CHECK_SERVICE = "check_state_validity"
 DEFAULT_GET_TARGET = "/ar_pose_marker"
+DEFAULT_VISION_SERVICE = "/get_target"
 
 class beerGrabber():
 
@@ -36,9 +38,17 @@ class beerGrabber():
 
         # ik service
         self.ik_service_name = DEFAULT_IK_SERVICE
-        self.ik_serv = rospy.ServiceProxy(self.ik_service_name, SolvePositionIK)
+        self.ik_serv = rospy.ServiceProxy(self.ik_service_name, target)
         self.ik_serv.wait_for_service()
         rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
+
+        # ik service
+        self.vision_service_name = DEFAULT_VISION_SERVICE
+        self.vision_serv = rospy.ServiceProxy(self.vision_service_name, SolvePositionIK)
+        self.vision_serv.wait_for_service()
+        rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
+
+
 
         # check state service
         self.check_service_name = DEFAULT_CHECK_SERVICE
@@ -52,13 +62,17 @@ class beerGrabber():
         self.gripper_io = IODeviceInterface("end_effector", grip_name)
 
 
-    def getTargetEEF():
+    def getTargetEEF(self):
         """
         Get the target position in Cartesian Space from vision node
 
         @return type: returns Pose() msg
         """
-        return true
+        req = targetRequest()
+        req.data = 0
+        resp = self.vision_serv.call(req)
+
+        return resp
 
     def convertToJointStates(self, target):
         """
