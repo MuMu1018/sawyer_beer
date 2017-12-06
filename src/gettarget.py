@@ -8,24 +8,28 @@ from geometry_msgs.msg import Point
 from sawyer_beer.srv import *
 import rospy
 
-def callback(data,pose1):
+def callback(data):
+    print("got to this -1")
     ar_marker = data
+    print("got to this 0")
     markers = ar_marker.markers
-    id = markers.id
-    pose1 = markers.pose.pose
+    print("got to this 1")
+    print("got to this 2")
+    pose1 = markers[0].pose.pose
+    print("got to this 3")
 
 
 
 def handle_gettarget(req):
     print "Returning target position"
-    pose=[]
-    rospy.Subscriber("/ar_pose_marker", AlvarMarkers, callback,pose)
-    return targetResponse(pose)
+    pose=Pose()
+    rospy.Subscriber("/ar_pose_marker", AlvarMarkers, callback)
+    return targetResponse()
 
 def gettarget_server():
     rospy.init_node('gettarget_server')
 
-    s = rospy.Service('gettarget', target, handle_gettarget)
+    s=rospy.Service('gettarget', target, handle_gettarget)
     rospy.spin()
 
 if __name__ == "__main__":
