@@ -308,6 +308,8 @@ if __name__=='__main__':
         pose_target.orientation.y=-1.0
         pose_target.orientation.z=0.0
         pose_target.orientation.w = -1.0
+        pose_target.position.x = pose_target.position.x - 0.2
+        pose_target.position.z = pose_target.position.z + 0.1
         # pose_target.pose.orientation.w = -1.0 * pose_target.pose.orientation.w
 
         # # test point in Cartesian Space - Manual setting
@@ -326,7 +328,32 @@ if __name__=='__main__':
         # get target in JointState
         target_js = bg.generateValidTargetJointState(pose_target)
 
+
         bg.testPlan(target_js)
+
+
+        # bottle scene
+        # # self.scene.remove_world_object("bottle")
+        # p_b = PoseStamped()
+        # p_b.header.frame_id = bg.robot.get_planning_frame()
+        # p_b.pose.position.x = pose_target.position.x + 0.1
+        # p_b.pose.position.y = pose_target.position.y
+        # p_b.pose.position.z = pose_target.position.z
+        #
+        # bg.scene.add_box("bottle", p_b, (0.01,0.01,0.05))
+
+        new_pose = pose_target
+        new_pose.position.x = new_pose.position.x + 0.1
+        # new_target_js = bg.generateValidTargetJointState(new_pose)
+        # bg.testPlan(new_target_js)
+        # set target
+        bg.group.set_pose_target(new_pose)
+        # generate plan
+        plan = bg.group.plan()
+
+        # execute plan
+        bg.group.go()
+        print "Done!"
 
         # gripper part - disabled for testing
         # # start gripping
