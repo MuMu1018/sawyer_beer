@@ -38,17 +38,15 @@ class beerGrabber():
 
         # ik service
         self.ik_service_name = DEFAULT_IK_SERVICE
-        self.ik_serv = rospy.ServiceProxy(self.ik_service_name, target)
+        self.ik_serv = rospy.ServiceProxy(self.ik_service_name, SolvePositionIK)
         self.ik_serv.wait_for_service()
         rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
 
-        # ik service
+        # vision service
         self.vision_service_name = DEFAULT_VISION_SERVICE
-        self.vision_serv = rospy.ServiceProxy(self.vision_service_name, SolvePositionIK)
+        self.vision_serv = rospy.ServiceProxy(self.vision_service_name, target)
         self.vision_serv.wait_for_service()
         rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
-
-
 
         # check state service
         self.check_service_name = DEFAULT_CHECK_SERVICE
@@ -61,6 +59,9 @@ class beerGrabber():
         grip_name = '_'.join([side, 'gripper'])
         self.gripper_io = IODeviceInterface("end_effector", grip_name)
 
+        # add target position - might be useful when add bottle in the scene
+        self.target = Pose()
+
 
     def getTargetEEF(self):
         """
@@ -72,7 +73,7 @@ class beerGrabber():
         req.data = 0
         resp = self.vision_serv.call(req)
 
-        return resp
+        return resp.pose
 
     def convertToJointStates(self, target):
         """
@@ -86,7 +87,11 @@ class beerGrabber():
         p = PoseStamped()
         p.header = Header(stamp=rospy.Time.now(), frame_id='base')
         p.pose = target
-
+        print "========= target 0 ========="
+        print target
+        self.target.position.x = p.pose.position.x
+        self.target.position.y = p.pose.position.y
+        self.target.position.z = p.pose.position.z
         # Add desired pose for inverse kinematics
         ikreq.pose_stamp.append(p)
         # Request inverse kinematics from base to "right_hand" link
@@ -98,15 +103,26 @@ class beerGrabber():
         seed.name = self.right_arm
         # use random numbers to get different solutions
         j1 = random.randint(50,340)/100.0
+        j2 = random.randint(40,300)/100.0
+        j3 = random.randint(-180,140)/100.0
+        j4 = random.randint(-150,10)/100.0
+        j5 = random.randint(-180,10)/100.0
+        j6 = random.randint(-200,10)/100.0
+        j7 = random.randint(-100,200)/100.0
         # j1 range 0.5 to 3.4
-        seed.position = [j1, 0.4, -1.7, 1.4, -1.1, -1.6, -0.4]
+        seed.position = [j1, j2, j3, j4, j5, j6, j7]
+        # seed.position = [j1, 0.4, -1.7, 1.4, -1.1, -1.6, -0.4]
         ikreq.seed_angles.append(seed)
 
         # get the response from IK solver Service
         resp = self.ik_serv.call(ikreq)
+        print "========= resp 0 ========="
+        print resp
 
         # reassgin a random value to joint seed if fail to get the valid solution
         while resp.result_type[0] <= 0:
+            print "error type: "
+            print resp.result_type[0]
             j1 = random.randint(50,340)/100.0
             seed.position = [j1, 0.4, -1.7, 1.4, -1.1, -1.6, -0.4]
             ikreq.seed_angles.append(seed)
@@ -158,15 +174,28 @@ class beerGrabber():
         # y = -0.92
         # z = 0.17
 
+        rospy.sleep(5)
         # table scene
         self.scene.remove_world_object("table")
         p = PoseStamped()
         p.header.frame_id = self.robot.get_planning_frame()
-        p.pose.position.x = 1.0
-        p.pose.position.y = 1.0
+        p.pose.position.x = 0.0
+        p.pose.position.y = -1.0
         p.pose.position.z = -0.211
 
-        self.scene.add_box("table", p, (1.22,0.76,0.022))
+        self.scene.add_box("table", p, (2.24,1.5,0.03))
+
+        print "Add table!"
+
+        # # bottle scene
+        # self.scene.remove_world_object("bottle")
+        # p_b = PoseStamped()
+        # p_b.header.frame_id = self.robot.get_planning_frame()
+        # p_b.pose.position.x = self.target.position.x + 0.06
+        # p_b.pose.position.y = self.target.position.y + 0.06
+        # p_b.pose.position.z = self.target.position.z
+        #
+        # self.scene.add_box("table", p_b, (0.06,0.06,0.12))
 
         # # fridge scene
         # f_b = PoseStamped()
@@ -230,7 +259,7 @@ class beerGrabber():
 
         ## grabbing bottle
         self.gripper_io.set_signal_value("speed_mps", 1)
-        
+
 
         self.gripper_io.set_signal_value("position_m", 0.01)
         light_size = self.gripper_io.get_signal_value("position_response_m")
@@ -244,7 +273,7 @@ class beerGrabber():
             print "risky force is: ", light_force
 
             self.gripper_io.set_signal_value("position_m", 0.00)
-        
+
         # get true force and obejct size responses
         force = self.gripper_io.get_signal_value("force_response_n")
         obj_size = self.gripper_io.get_signal_value("position_response_m")
@@ -269,51 +298,62 @@ if __name__=='__main__':
 
         # add collision Objects
         bg.addCollisionObjects()
-        #scene.add_box("table", p, (1.22 0.76 0.022))
 
-        # get target in Cartesian
-        # pose_target = bg.getTargetEEF()
-
-        # test point in Cartesian Space
-        pose_target = Pose()
+        # get target in Cartesian - Camera
+        pose_target = bg.getTargetEEF()
+        print "pose_target_from_camera: "
+        print pose_target
+        # reset orientation
         pose_target.orientation.x=0.0
         pose_target.orientation.y=-1.0
         pose_target.orientation.z=0.0
         pose_target.orientation.w = -1.0
-        pose_target.position.x = 0.309927978406
-        pose_target.position.y = -0.542434554721
-        pose_target.position.z = 0.0147707694269
+        # pose_target.pose.orientation.w = -1.0 * pose_target.pose.orientation.w
+
+        # # test point in Cartesian Space - Manual setting
+        # pose_target = Pose()
+        #
+        # pose_target.orientation.x= 1.0
+        # pose_target.orientation.y= -1.0
+        # pose_target.orientation.z= 0.0
+        # pose_target.orientation.w = -1.0
+        # pose_target.position.x = 0.609927978406
+        # pose_target.position.y = -0.542434554721
+        # pose_target.position.z = 0.0147707694269
+        # print "pose_target_default: "
+        # print pose_target
 
         # get target in JointState
         target_js = bg.generateValidTargetJointState(pose_target)
 
         bg.testPlan(target_js)
 
-        # start gripping
-        rospy.sleep(1)
-        bg.gripAct()
-        rospy.sleep(2)
-
-        ## move to a new location
-        release_target = Pose()
-        release_target.orientation.x=0.0
-        release_target.orientation.y=1.0
-        release_target.orientation.z=0.0
-        release_target.orientation.w = 1.0
-        release_target.position.x = 0.909927978406
-        release_target.position.y = -0.042434554721
-        release_target.position.z = 0.0547707694269
-
-        # get target in JointState
-        release_target_js = bg.generateValidTargetJointState(release_target)
-
-        bg.testPlan(release_target_js)
-
-        ## releasing bottle
-        # after move into position
-        rospy.sleep(1)
-
-        bg.gripRelease()
+        # gripper part - disabled for testing
+        # # start gripping
+        # rospy.sleep(1)
+        # bg.gripAct()
+        # rospy.sleep(2)
+        #
+        # ## move to a new location
+        # release_target = Pose()
+        # release_target.orientation.x=0.0
+        # release_target.orientation.y=1.0
+        # release_target.orientation.z=0.0
+        # release_target.orientation.w = 1.0
+        # release_target.position.x = 0.909927978406
+        # release_target.position.y = -0.042434554721
+        # release_target.position.z = 0.0547707694269
+        #
+        # # get target in JointState
+        # release_target_js = bg.generateValidTargetJointState(release_target)
+        #
+        # bg.testPlan(release_target_js)
+        #
+        # ## releasing bottle
+        # # after move into position
+        # rospy.sleep(1)
+        #
+        # bg.gripRelease()
         # final_force = gripper_io.get_signal_value("force_response_n")
         # print "final force is: ", final_force
 
