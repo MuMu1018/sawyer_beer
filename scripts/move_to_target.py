@@ -43,9 +43,8 @@ class beerGrabber():
         rospy.loginfo("Successful connection to '" + self.check_service_name + "'.")
 
         # initiate gripper
-        side="right"
-        grip_name = '_'.join([side, 'gripper'])
-        self.gripper_io = IODeviceInterface("end_effector", grip_name)
+        self.grip_name = 'right_gripper'
+        self.gripper_io = IODeviceInterface("end_effector", self.grip_name)
 
 
     def getTargetEEF():
@@ -113,12 +112,12 @@ class beerGrabber():
         return target_js
 
     def addCollisionObjects(self):
-    # input: description of the object
-    # output: none
-    # TODO: build a dictionary of objects - table, fridge, bottle
-    # scene.add_box("box", p, (1.68, 1.22, 0.86))
+        # input: description of the object
+        # output: none
+        # TODO: build a dictionary of objects - table, fridge, bottle
+        # scene.add_box("box", p, (1.68, 1.22, 0.86))
 
-    # TODO: add color
+        # TODO: add color
         # measurement of the world - check the sawyer_scene/fridge_closed_door.scene
         # f_length = 0.39
         # f_width = 0.47
@@ -167,7 +166,6 @@ class beerGrabber():
 
         return
 
-
     def checkCollisions(self,target):
         """
         Given a target position in JointState and check whether there is collision
@@ -204,9 +202,6 @@ class beerGrabber():
         ## Gripper
         self.gripper_io.set_signal_value("position_m", 0.041)
         rospy.sleep(2)
-        # side="right"
-        # grip_name = '_'.join([side, 'gripper'])
-        # gripper_io = IODeviceInterface("end_effector", grip_name)
 
         if self.gripper_io.get_signal_value("is_calibrated") != True:
             self.gripper_io.set_signal_value("calibrate", True)
@@ -236,8 +231,6 @@ class beerGrabber():
             self.gripper_io.set_signal_value("position_m", 0.041)
             print "releasing!"
 
-
-
 if __name__=='__main__':
     moveit_commander.roscpp_initialize(sys.argv)
 
@@ -252,7 +245,7 @@ if __name__=='__main__':
         #scene.add_box("table", p, (1.22 0.76 0.022))
 
         # get target in Cartesian
-        #pose_target = bg.getTargetEEF()
+        # pose_target = bg.getTargetEEF()
 
         # test point in Cartesian Space
         pose_target = Pose()
@@ -275,26 +268,27 @@ if __name__=='__main__':
         rospy.sleep(2)
 
         ## move to a new location
-        pose_target = Pose()
-        pose_target.orientation.x=0.0
-        pose_target.orientation.y=1.0
-        pose_target.orientation.z=0.0
-        pose_target.orientation.w = 1.0
-        pose_target.position.x = 0.909927978406
-        pose_target.position.y = -0.042434554721
-        pose_target.position.z = 0.0547707694269
+        release_target = Pose()
+        release_target.orientation.x=0.0
+        release_target.orientation.y=1.0
+        release_target.orientation.z=0.0
+        release_target.orientation.w = 1.0
+        release_target.position.x = 0.909927978406
+        release_target.position.y = -0.042434554721
+        release_target.position.z = 0.0547707694269
 
         # get target in JointState
-        target_js = bg.generateValidTargetJointState(pose_target)
+        release_target_js = bg.generateValidTargetJointState(release_target)
 
-        bg.testPlan(target_js)
+        bg.testPlan(release_target_js)
 
         ## releasing bottle
-        #after move into position
+        # after move into position
         rospy.sleep(1)
+
         bg.gripRelease()
-        #final_force = gripper_io.get_signal_value("force_response_n")
-        #print "final force is: ", final_force
+        # final_force = gripper_io.get_signal_value("force_response_n")
+        # print "final force is: ", final_force
 
         except rospy.ROSInterruptException:
             pass
