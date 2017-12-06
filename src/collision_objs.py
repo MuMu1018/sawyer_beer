@@ -26,8 +26,8 @@ f_t_thickness = 0.25
 f_h_left_of_center = 0.145
 f_h_forward_of_door = 0.05
 f_h_height_from_bottom_of_fridge_door = 0.22
-h_height = .1
-h_radius = 015
+h_height = 0.1
+h_radius = 0.015
 # t_height, from base of the sawyer to the top of the table
 # t_height = -0.2
 
