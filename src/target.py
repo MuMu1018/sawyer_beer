@@ -9,11 +9,9 @@ from geometry_msgs.msg import Pose
 from geometry_msgs.msg import PoseStamped
 
 
-class vision():
-    def __init__(self):
-        # service to publish location data, Pose()
 
-    def callback(self,data,stepincall,times):
+
+    def callback(data,stepincall,times):
         #get the pose of the data
 
         #exam if the pose is valid
