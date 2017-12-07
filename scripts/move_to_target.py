@@ -111,7 +111,7 @@ class beerGrabber():
         j7 = random.randint(-100,200)/100.0
         # j1 range 0.5 to 3.4
         seed.position = [j1, j2, j3, j4, j5, j6, j7]
-        # seed.position = [j1, 0.4, -1.7, 1.4, -1.1, -1.6, -0.4]
+        # seed.position = [-1.0460302734375, 1.2869541015625, -0.343587890625, -1.6291728515625, -2.08798828125, -0.701947265625, 3.9707255859375]
         ikreq.seed_angles.append(seed)
 
         # get the response from IK solver Service
