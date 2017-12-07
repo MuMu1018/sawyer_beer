@@ -226,6 +226,10 @@ class beerGrabber():
         req.robot_state.joint_state.position = target
         resp = self.check_serv(req)
         print "Is target valid?", resp.valid
+        print "===================================="
+        print resp
+        print "====================================="
+        print "\r\n"
         return resp.valid
 
     def generateValidTargetJointState(self,pose):
@@ -287,6 +291,30 @@ class beerGrabber():
             print "Releasing bottle!"
             self.gripper_io.set_signal_value("position_m", 0.017)
 
+
+    def add_grippers(self, zoffset=0.045, yoffset=0.038):
+        self.scene.remove_attached_object("right_gripper")
+        self.scene.remove_world_object("right_finger")
+        self.scene.remove_world_object("left_finger")
+
+        p = PoseStamped()
+        p.header.frame_id = "right_gripper"
+        p.pose.position.x = 0.0
+        p.pose.position.y = -yoffset
+        p.pose.position.z = zoffset
+        self.scene.attach_box("right_gripper", "right_finger", pose=p, size=(0.01, 0.01, 0.05))
+
+
+        p2 = PoseStamped()
+        p2.header.frame_id = "right_gripper"
+        p2.pose.position.x = 0.0
+        p2.pose.position.y = yoffset
+        p2.pose.position.z = zoffset
+        self.scene.attach_box("right_gripper", "left_finger", pose=p2, size=(0.01, 0.01, 0.05))
+
+        return
+
+
 if __name__=='__main__':
     moveit_commander.roscpp_initialize(sys.argv)
 
@@ -299,6 +327,9 @@ if __name__=='__main__':
         # add collision Objects
         bg.addCollisionObjects()
 
+        # add grippers
+        bg.add_grippers()
+
         # get target in Cartesian - Camera
         pose_target = bg.getTargetEEF()
         print "pose_target_from_camera: "
@@ -308,7 +339,7 @@ if __name__=='__main__':
         pose_target.orientation.y=-1.0
         pose_target.orientation.z=0.0
         pose_target.orientation.w = -1.0
-        pose_target.position.x = pose_target.position.x - 0.2
+        pose_target.position.x = pose_target.position.x - 0.1
         pose_target.position.z = pose_target.position.z + 0.1
         # pose_target.pose.orientation.w = -1.0 * pose_target.pose.orientation.w
 
@@ -342,18 +373,18 @@ if __name__=='__main__':
         #
         # bg.scene.add_box("bottle", p_b, (0.01,0.01,0.05))
 
-        new_pose = pose_target
-        new_pose.position.x = new_pose.position.x + 0.1
+        # new_pose = pose_target
+        # new_pose.position.x = new_pose.position.x + 0.1
         # new_target_js = bg.generateValidTargetJointState(new_pose)
         # bg.testPlan(new_target_js)
         # set target
-        bg.group.set_pose_target(new_pose)
+        # bg.group.set_pose_target(new_pose)
         # generate plan
-        plan = bg.group.plan()
+        # plan = bg.group.plan()
 
         # execute plan
-        bg.group.go()
-        print "Done!"
+        # bg.group.go()
+        # print "Done!"
 
         # gripper part - disabled for testing
         # # start gripping
