@@ -313,6 +313,19 @@ class beerGrabber():
         self.scene.attach_box("right_gripper", "left_finger", pose=p2, size=(0.01, 0.01, 0.05))
 
         return
+    def add_bottle(self,target):
+        rospy.sleep(5)
+        # table scene
+        self.scene.remove_world_object("coke")
+        p = PoseStamped()
+        p.header.frame_id = self.robot.get_planning_frame()
+        p.pose.position.x = target.position.x + 0.06
+        p.pose.position.y = target.position.y
+        p.pose.position.z = target.position.z + 0.08
+
+        self.scene.add_box("coke", p, (0.05,0.05,0.16))
+
+        print "Add coke!"
 
 
 if __name__=='__main__':
@@ -334,6 +347,9 @@ if __name__=='__main__':
         pose_target = bg.getTargetEEF()
         print "pose_target_from_camera: "
         print pose_target
+
+        bg.add_bottle(pose_target)
+
         # reset orientation
         pose_target.orientation.x=0.0
         pose_target.orientation.y=-1.0
