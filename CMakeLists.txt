@@ -76,7 +76,7 @@ add_service_files(
 ## Generate added messages and services with any dependencies listed here
  generate_messages(
    DEPENDENCIES
-   geometry_msgs   intera_core_msgs   sensor_msgs   std_msgs
+   geometry_msgs   baxter_core_msgs   sensor_msgs   std_msgs
  )
 
 ################################################
@@ -111,7 +111,7 @@ add_service_files(
 catkin_package(
 #  INCLUDE_DIRS include
 #  LIBRARIES sawyer_beer
-CATKIN_DEPENDS cv_bridge geometry_msgs intera_core_msgs message_generation roscpp rospy sensor_msgs std_msgs std_srvs message_runtime
+CATKIN_DEPENDS cv_bridge geometry_msgs baxter_core_msgs message_generation roscpp rospy sensor_msgs std_msgs std_srvs message_runtime
 #  DEPENDS system_lib
 )
 
