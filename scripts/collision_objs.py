@@ -121,14 +121,14 @@ class collisionObjects():
         self.f_h_size = (self.h_height, self.h_radius)
         self.add_to_dict("fridge_handle",self.f_h,self.f_h_size)
 
-        #redbull
-        self.redbull_size = [.065,.065,.175]
-
-        self.obj_size_dict["redbull"] = self.redbull_size
+        #doubleshot_can
+        self.double_shot_can_size = [.055,.055,.11]
+        #self.double_shot_can_size = [.038,.038,.11] (inscribed square)
+        self.obj_size_dict["double_shot_can"] = self.double_shot_can_size
 
         #coke
         self.coke_size = [.065,.065,.16]
-
+        #self.double_shot_can_size = [.046,.046,.175] (inscribed square)
         self.obj_size_dict["coke"] = self.coke_size
 
     def add_to_dict(self,name,p,p_size):
