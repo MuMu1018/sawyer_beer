@@ -32,23 +32,25 @@ class beerGrabber():
         self.robot = moveit_commander.RobotCommander()
         self.group = moveit_commander.MoveGroupCommander("right_arm")
 
+        self.group.set_max_velocity_scaling_factor(0.8)
+        self.group.set_max_acceleration_scaling_factor(0.8)
+        self.group.set_planning_time(60)
+
         self.right_arm = ['right_j0', 'right_j1', 'right_j2', 'right_j3',
                      'right_j4', 'right_j5', 'right_j6']
         rospy.loginfo("Initializing beerGrabber")
 
         # ik service
         self.ik_service_name = DEFAULT_IK_SERVICE
-        self.ik_serv = rospy.ServiceProxy(self.ik_service_name, target)
+        self.ik_serv = rospy.ServiceProxy(self.ik_service_name, SolvePositionIK)
         self.ik_serv.wait_for_service()
         rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
 
-        # ik service
+        # vision service
         self.vision_service_name = DEFAULT_VISION_SERVICE
-        self.vision_serv = rospy.ServiceProxy(self.vision_service_name, SolvePositionIK)
+        self.vision_serv = rospy.ServiceProxy(self.vision_service_name, target)
         self.vision_serv.wait_for_service()
         rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
-
-
 
         # check state service
         self.check_service_name = DEFAULT_CHECK_SERVICE
@@ -61,6 +63,9 @@ class beerGrabber():
         grip_name = '_'.join([side, 'gripper'])
         self.gripper_io = IODeviceInterface("end_effector", grip_name)
 
+        # add target position - might be useful when add bottle in the scene
+        self.target = Pose()
+
 
     def getTargetEEF(self):
         """
@@ -72,7 +77,7 @@ class beerGrabber():
         req.data = 0
         resp = self.vision_serv.call(req)
 
-        return resp
+        return resp.pose
 
     def convertToJointStates(self, target):
         """
@@ -86,7 +91,11 @@ class beerGrabber():
         p = PoseStamped()
         p.header = Header(stamp=rospy.Time.now(), frame_id='base')
         p.pose = target
-
+        print "========= target 0 ========="
+        print target
+        self.target.position.x = p.pose.position.x
+        self.target.position.y = p.pose.position.y
+        self.target.position.z = p.pose.position.z
         # Add desired pose for inverse kinematics
         ikreq.pose_stamp.append(p)
         # Request inverse kinematics from base to "right_hand" link
@@ -98,17 +107,30 @@ class beerGrabber():
         seed.name = self.right_arm
         # use random numbers to get different solutions
         j1 = random.randint(50,340)/100.0
+        j2 = random.randint(40,300)/100.0
+        j3 = random.randint(-180,140)/100.0
+        j4 = random.randint(-150,10)/100.0
+        j5 = random.randint(-180,10)/100.0
+        j6 = random.randint(-200,10)/100.0
+        j7 = random.randint(-100,200)/100.0
         # j1 range 0.5 to 3.4
-        seed.position = [j1, 0.4, -1.7, 1.4, -1.1, -1.6, -0.4]
+        seed.position = self.group.get_random_joint_values()
+        # seed.position = [j1, j2, j3, j4, j5, j6, j7]
+        # seed.position = [-1.0460302734375, 1.2869541015625, -0.343587890625, -1.6291728515625, -2.08798828125, -0.701947265625, 3.9707255859375]
+        # seed.position = [-1.1142587890625, 0.0140517578125, 0.734078125, 0.7475322265625, -1.769462890625, -0.753177734375, 2.4646884765625]
         ikreq.seed_angles.append(seed)
 
         # get the response from IK solver Service
         resp = self.ik_serv.call(ikreq)
+        print "========= resp 0 ========="
+        print resp
 
         # reassgin a random value to joint seed if fail to get the valid solution
         while resp.result_type[0] <= 0:
-            j1 = random.randint(50,340)/100.0
-            seed.position = [j1, 0.4, -1.7, 1.4, -1.1, -1.6, -0.4]
+            print "error type: "
+            print resp.result_type[0]
+            # j1 = random.randint(50,340)/100.0
+            seed.position = self.group.get_random_joint_values()
             ikreq.seed_angles.append(seed)
             resp = self.ik_serv.call(ikreq)
 
@@ -134,52 +156,38 @@ class beerGrabber():
         # input: description of the object
         # output: none
         # TODO: build a dictionary of objects - table, fridge, bottle
-        # scene.add_box("box", p, (1.68, 1.22, 0.86))
-
         # TODO: add color
-        # measurement of the world - check the sawyer_scene/fridge_closed_door.scene
-        # f_length = 0.39
-        # f_width = 0.47
-        # f_height = 0.46
-        # f_thickness = 0.03
-        # f_d_thickness = 0.04
-        # t_length = 1.22
-        # t_width = 0.76
-        # t_height, from base of the sawyer to the top of the table
-        # t_height = -0.2
-        # t_thickness = 0.022
-        # f_b_height: from top of table to bot of fridge
-        # f_b_height = 0.015
-        # handle
-        #
 
-        # center of the ridge_bot
-        # x = 0.74
-        # y = -0.92
-        # z = 0.17
-
+        rospy.sleep(5)
         # table scene
         self.scene.remove_world_object("table")
+        self.scene.remove_world_object("table1")
+        self.scene.remove_world_object("table2")
         p = PoseStamped()
         p.header.frame_id = self.robot.get_planning_frame()
-        p.pose.position.x = 1.0
-        p.pose.position.y = 1.0
+        p.pose.position.x = -0.5
+        p.pose.position.y = -1.0
         p.pose.position.z = -0.211
 
-        self.scene.add_box("table", p, (1.22,0.76,0.022))
+        self.scene.add_box("table1", p, (1.6,1.4,0.03))
 
-        # # fridge scene
-        # f_b = PoseStamped()
-        # f_b.header.frame_id = robot.get_planning_frame()
-        # f_b.pose.position.x = x
-        # f_b.pose.position.y = y
-        # f_b.pose.position.z = z
+        p.pose.position.x = 1.0
+        p.pose.position.y = -0.5
+        p.pose.position.z = -0.211
+
+        self.scene.add_box("table2", p, (1.4,2.0,0.03))
+
+        print "Add tables!"
+
+        # # bottle scene
+        # self.scene.remove_world_object("bottle")
+        # p_b = PoseStamped()
+        # p_b.header.frame_id = self.robot.get_planning_frame()
+        # p_b.pose.position.x = self.target.position.x + 0.06
+        # p_b.pose.position.y = self.target.position.y + 0.06
+        # p_b.pose.position.z = self.target.position.z
         #
-        # f_t = PoseStamped()
-        # f_t.header.frame_id = robot.get_planning_frame()
-        # f_t.pose.position.x = x
-        # f_t.pose.position.y = y
-        # f_t.pose.position.z = z + 0.46 - f_thickness
+        # self.scene.add_box("table", p_b, (0.06,0.06,0.12))
 
         # TODO: add more scenes about the fridge
 
@@ -197,6 +205,10 @@ class beerGrabber():
         req.robot_state.joint_state.position = target
         resp = self.check_serv(req)
         print "Is target valid?", resp.valid
+        print "===================================="
+        print resp
+        print "====================================="
+        print "\r\n"
         return resp.valid
 
     def generateValidTargetJointState(self,pose):
@@ -214,7 +226,7 @@ class beerGrabber():
         plan = self.group.plan()
 
         # execute plan
-        self.group.go()
+        self.group.execute(plan)
         print "Done!"
 
     def gripAct(self):
@@ -230,7 +242,7 @@ class beerGrabber():
 
         ## grabbing bottle
         self.gripper_io.set_signal_value("speed_mps", 1)
-        
+
 
         self.gripper_io.set_signal_value("position_m", 0.01)
         light_size = self.gripper_io.get_signal_value("position_response_m")
@@ -243,8 +255,8 @@ class beerGrabber():
             light_force = self.gripper_io.get_signal_value("force_response_n")
             print "risky force is: ", light_force
 
-            self.gripper_io.set_signal_value("position_m", 0.00)
-        
+            self.gripper_io.set_signal_value("position_m", -0.005)
+
         # get true force and obejct size responses
         force = self.gripper_io.get_signal_value("force_response_n")
         obj_size = self.gripper_io.get_signal_value("position_response_m")
@@ -256,7 +268,45 @@ class beerGrabber():
         if self.gripper_io.get_signal_value("is_gripping"):
             print touch_size
             print "Releasing bottle!"
-            self.gripper_io.set_signal_value("position_m", 0.017)
+            self.gripper_io.set_signal_value("position_m", 0.013)
+
+
+    def add_grippers(self, zoffset=0.065, yoffset=0.048):
+        self.scene.remove_attached_object("right_gripper")
+        self.scene.remove_world_object("right_finger")
+        self.scene.remove_world_object("left_finger")
+
+        p = PoseStamped()
+        p.header.frame_id = "right_gripper"
+        p.pose.position.x = 0.0
+        p.pose.position.y = -yoffset
+        p.pose.position.z = zoffset
+        self.scene.attach_box("right_gripper", "right_finger", pose=p, size=(0.01, 0.01, 0.1))
+
+
+        p2 = PoseStamped()
+        p2.header.frame_id = "right_gripper"
+        p2.pose.position.x = 0.0
+        p2.pose.position.y = yoffset
+        p2.pose.position.z = zoffset
+        self.scene.attach_box("right_gripper", "left_finger", pose=p2, size=(0.01, 0.01, 0.1))
+
+        return
+
+    def add_bottle(self,target):
+        rospy.sleep(5)
+        # table scene
+        self.scene.remove_world_object("coke")
+        p = PoseStamped()
+        p.header.frame_id = self.robot.get_planning_frame()
+        p.pose.position.x = target.position.x + 0.04
+        p.pose.position.y = target.position.y
+        p.pose.position.z = target.position.z + 0.12
+
+        self.scene.add_box("coke", p, (0.05,0.05,0.225))
+
+        print "Add coke!"
+
 
 if __name__=='__main__':
     moveit_commander.roscpp_initialize(sys.argv)
@@ -267,53 +317,107 @@ if __name__=='__main__':
 
         bg = beerGrabber()
 
+        #open gripper to widest angle
+        bg.gripper_io.set_signal_value("position_m", 0.041)
+
         # add collision Objects
         bg.addCollisionObjects()
-        #scene.add_box("table", p, (1.22 0.76 0.022))
 
-        # get target in Cartesian
-        # pose_target = bg.getTargetEEF()
+        # add grippers
+        bg.add_grippers()
+        #
+        # home_js = [-1.0460302734375, 1.2869541015625, -0.343587890625, -1.6291728515625, -2.08798828125, -0.701947265625, 3.9707255859375]
+        # home_js = [ -0.98726953125, 1.2876748046875, -2.8441494140625, 1.1922783203125, -2.2668955078125, -0.442734375, 2.982521484375]
+        home_js = [-0.7774326171875, 1.287365234375, -2.6271181640625, 1.835900390625, -2.804662109375, 0.817126953125, 3.6170166015625]
+        print "move to home!"
+        bg.testPlan(home_js)
 
-        # test point in Cartesian Space
-        pose_target = Pose()
+        # get target in Cartesian - Camera
+        pose_target = bg.getTargetEEF()
+        print "pose_target_from_camera: "
+        print pose_target
+
+        bg.add_bottle(pose_target)
+
+
+        # reset orientation
         pose_target.orientation.x=0.0
         pose_target.orientation.y=-1.0
         pose_target.orientation.z=0.0
         pose_target.orientation.w = -1.0
-        pose_target.position.x = 0.309927978406
-        pose_target.position.y = -0.542434554721
-        pose_target.position.z = 0.0147707694269
+        pose_target.position.x = pose_target.position.x - 0.08
+        pose_target.position.z = pose_target.position.z + 0.12
+        # pose_target.pose.orientation.w = -1.0 * pose_target.pose.orientation.w
+
+        # # test point in Cartesian Space - Manual setting
+        # pose_target = Pose()
+        #
+        # pose_target.orientation.x= 1.0
+        # pose_target.orientation.y= -1.0
+        # pose_target.orientation.z= 0.0
+        # pose_target.orientation.w = -1.0
+        # pose_target.position.x = 0.609927978406
+        # pose_target.position.y = -0.542434554721
+        # pose_target.position.z = 0.0147707694269
+        # print "pose_target_default: "
+        # print pose_target
 
         # get target in JointState
         target_js = bg.generateValidTargetJointState(pose_target)
 
+
         bg.testPlan(target_js)
 
-        # start gripping
-        rospy.sleep(1)
-        bg.gripAct()
-        rospy.sleep(2)
 
-        ## move to a new location
-        release_target = Pose()
-        release_target.orientation.x=0.0
-        release_target.orientation.y=1.0
-        release_target.orientation.z=0.0
-        release_target.orientation.w = 1.0
-        release_target.position.x = 0.909927978406
-        release_target.position.y = -0.042434554721
-        release_target.position.z = 0.0547707694269
+        # bottle scene
+        # # self.scene.remove_world_object("bottle")
+        # p_b = PoseStamped()
+        # p_b.header.frame_id = bg.robot.get_planning_frame()
+        # p_b.pose.position.x = pose_target.position.x + 0.1
+        # p_b.pose.position.y = pose_target.position.y
+        # p_b.pose.position.z = pose_target.position.z
+        #
+        # bg.scene.add_box("bottle", p_b, (0.01,0.01,0.05))
 
-        # get target in JointState
-        release_target_js = bg.generateValidTargetJointState(release_target)
+        # new_pose = pose_target
+        # new_pose.position.x = new_pose.position.x + 0.1
+        # new_target_js = bg.generateValidTargetJointState(new_pose)
+        # bg.testPlan(new_target_js)
+        # set target
+        # bg.group.set_pose_target(new_pose)
+        # generate plan
+        # plan = bg.group.plan()
 
-        bg.testPlan(release_target_js)
+        # execute plan
+        # bg.group.go()
+        # print "Done!"
 
-        ## releasing bottle
-        # after move into position
-        rospy.sleep(1)
-
-        bg.gripRelease()
+        # gripper part - disabled for testing
+        # # start gripping
+        # rospy.sleep(1)
+        # bg.gripAct()
+        # rospy.sleep(2)
+        # #
+        # # ## move to a new location
+        # release_target = Pose()
+        # release_target.orientation.x=0.0
+        # release_target.orientation.y=-1.0
+        # release_target.orientation.z=0.0
+        # release_target.orientation.w = -1.0
+        # release_target.position.x = 0.909927978406
+        # release_target.position.y = -0.042434554721
+        # release_target.position.z = 0.0547707694269
+        # #
+        # # # get target in JointState
+        # release_target_js = bg.generateValidTargetJointState(release_target)
+        #
+        # bg.testPlan(release_target_js)
+        #
+        # ## releasing bottle
+        # # after move into position
+        # rospy.sleep(1)
+        #
+        # bg.gripRelease()
         # final_force = gripper_io.get_signal_value("force_response_n")
         # print "final force is: ", final_force
 
