@@ -10,7 +10,8 @@ import moveit_msgs.msg
 from sawyer_beer.srv import target, targetResponse, targetRequest
 from geometry_msgs.msg import PoseStamped, Pose, Point, Quaternion
 from std_msgs.msg import Header, String
-from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
+# from intera_core_msgs.srv import SolvePositionIK, SolvePositionIKRequest
+from moveit_msgs.srv import GetPositionIK, GetPositionIKRequest, GetPositionIKResponse
 from moveit_msgs.srv import GetStateValidity, GetStateValidityRequest, GetStateValidityResponse
 
 from sensor_msgs.msg import JointState
@@ -19,7 +20,10 @@ import intera_dataflow
 from intera_io import IODeviceInterface
 from intera_core_msgs.msg import IONodeConfiguration
 
-DEFAULT_IK_SERVICE = "ExternalTools/right/PositionKinematicsNode/IKService"
+from collision_objs import collisionObjects
+
+# DEFAULT_IK_SERVICE = "ExternalTools/right/PositionKinematicsNode/IKService"
+DEFAULT_IK_SERVICE = "compute_ik"
 DEFAULT_CHECK_SERVICE = "check_state_validity"
 DEFAULT_GET_TARGET = "/ar_pose_marker"
 DEFAULT_VISION_SERVICE = "/get_target"
@@ -54,7 +58,8 @@ class beerGrabber():
 
         # check state service
         self.check_service_name = DEFAULT_CHECK_SERVICE
-        self.check_serv = rospy.ServiceProxy(self.check_service_name, GetStateValidity)
+        # self.check_serv = rospy.ServiceProxy(self.check_service_name, GetStateValidity)
+        self.check_serv = rospy.ServiceProxy(self.check_service_name, GetPositionIK)
         self.check_serv.wait_for_service()
         rospy.loginfo("Successful connection to '" + self.check_service_name + "'.")
 
@@ -64,7 +69,8 @@ class beerGrabber():
         self.gripper_io = IODeviceInterface("end_effector", grip_name)
 
         # add target position - might be useful when add bottle in the scene
-        self.target = Pose()
+        self.target = PoseStamped()
+        self.dict = collisionObjects()
 
     def getTargetEEF(self):
         """
@@ -78,83 +84,108 @@ class beerGrabber():
 
         return resp.pose
 
+    # def convertToJointStates(self, target):
+        # """
+        # Using IK solver to convert the target position to Joint Space from Cartesian Space
+        #
+        # @param target: Pose() msg to be converted
+        # @return type: returns a list of joint values
+        # """
+        # ikreq = SolvePositionIKRequest()
+        #
+        # p = PoseStamped()
+        # p.header = Header(stamp=rospy.Time.now(), frame_id='base')
+        # p.pose = target
+        # print "========= target 0 ========="
+        # print target
+        # # add target position - might be useful when add bottle in the scene
+        # self.target = p
+        # # Add desired pose for inverse kinematics
+        # ikreq.pose_stamp.append(p)
+        # # Request inverse kinematics from base to "right_hand" link
+        # ikreq.tip_names.append('right_hand')
+        #
+        # # The joint seed is where the IK position solver starts its optimization
+        # ikreq.seed_mode = ikreq.SEED_USER
+        # seed = JointState()
+        # seed.name = self.right_arm
+        # # use random numbers to get different solutions
+        # # TODO: how to define the limitation
+        # j1 = random.randint(50,340)/100.0
+        # j2 = random.randint(40,300)/100.0
+        # j3 = random.randint(-180,140)/100.0
+        # j4 = random.randint(-150,10)/100.0
+        # j5 = random.randint(-180,10)/100.0
+        # j6 = random.randint(-200,10)/100.0
+        # j7 = random.randint(-100,200)/100.0
+        # # j1 range 0.5 to 3.4
+        # seed.position = self.group.get_random_joint_values()
+        # # seed.position = [j1, j2, j3, j4, j5, j6, j7]
+        # # seed.position = [-1.0460302734375, 1.2869541015625, -0.343587890625, -1.6291728515625, -2.08798828125, -0.701947265625, 3.9707255859375]
+        # # seed.position = [-1.1142587890625, 0.0140517578125, 0.734078125, 0.7475322265625, -1.769462890625, -0.753177734375, 2.4646884765625]
+        # ikreq.seed_angles.append(seed)
+        #
+        # # get the response from IK solver Service
+        # resp = self.ik_serv.call(ikreq)
+        # print "========= resp 0 ========="
+        # print resp
+        #
+        # # reassgin a random value to joint seed if fail to get the valid solution
+        # while resp.result_type[0] <= 0:
+        #     print "error type: "
+        #     print resp.result_type[0]
+        #     # j1 = random.randint(50,340)/100.0
+        #     seed.position = self.group.get_random_joint_values()
+        #     ikreq.seed_angles.append(seed)
+        #     resp = self.ik_serv.call(ikreq)
+        #
+        # # message print out
+        # rospy.loginfo("SUCCESS - Valid Joint Solution Found")
+        #
+        # # rospy.logdebug("Response message: " + str(resp))
+        #
+        # target_js = [resp.joints[0].position[0],
+        #                 resp.joints[0].position[1],
+        #                 resp.joints[0].position[2],
+        #                 resp.joints[0].position[3],
+        #                 resp.joints[0].position[4],
+        #                 resp.joints[0].position[5],
+        #                 resp.joints[0].position[6]]
+        #
+        # # rospy.logdebug("Target value: " + str(target_js))
+
+        # return target_js
+
     def convertToJointStates(self, target):
-        """
-        Using IK solver to convert the target position to Joint Space from Cartesian Space
+        rospy.loginfo("Attempting to solve IK")
+        req = GetPositionIKRequest()
+        req.ik_request.group_name = "right_arm"
+        req.ik_request.robot_state.joint_state.name = self.group.get_active_joints()
+        req.ik_request.robot_state.joint_state.position = [0, 0, 0, 0, 0, 0, 0]
+        req.ik_request.avoid_collisions = True
+        req.ik_request.timeout = rospy.Duration(3.0)
+        req.ik_request.pose_stamped.header = Header(stamp=rospy.Time.now(), frame_id='base')
+        req.ik_request.pose_stamped.pose = target
+        req.ik_request.attempts = 10
+        resp = self.ik_serv(req)
+        # print "Error = ", resp.error_code
+        # print "Solution = ", resp.solution.joint_state.position,"\r"
+        q = np.zeros(len(self.group.get_active_joints()))
 
-        @param target: Pose() msg to be converted
-        @return type: returns a list of joint values
-        """
-        ikreq = SolvePositionIKRequest()
+        while not resp.error_code.val == moveit_msgs.msg.MoveItErrorCodes.SUCCESS:
+            req.ik_request.robot_state.joint_state.position = self.group.get_random_joint_values()
+            resp = self.ik_serv(req)
 
-        p = PoseStamped()
-        p.header = Header(stamp=rospy.Time.now(), frame_id='base')
-        p.pose = target
-        print "========= target 0 ========="
-        print target
-        self.target.position.x = p.pose.position.x
-        self.target.position.y = p.pose.position.y
-        self.target.position.z = p.pose.position.z
-        # Add desired pose for inverse kinematics
-        ikreq.pose_stamp.append(p)
-        # Request inverse kinematics from base to "right_hand" link
-        ikreq.tip_names.append('right_hand')
+        sol = {}
+        for k,v in zip(resp.solution.joint_state.name, resp.solution.joint_state.position):
+            sol[k] = v
+        for i,n in enumerate(self.group.get_active_joints()):
+            q[i] = sol[n]
+        rospy.loginfo("Found IK solution! q = %s", str(q.tolist()))
 
-        # The joint seed is where the IK position solver starts its optimization
-        ikreq.seed_mode = ikreq.SEED_USER
-        seed = JointState()
-        seed.name = self.right_arm
-        # use random numbers to get different solutions
-        j1 = random.randint(50,340)/100.0
-        j2 = random.randint(40,300)/100.0
-        j3 = random.randint(-180,140)/100.0
-        j4 = random.randint(-150,10)/100.0
-        j5 = random.randint(-180,10)/100.0
-        j6 = random.randint(-200,10)/100.0
-        j7 = random.randint(-100,200)/100.0
-        # j1 range 0.5 to 3.4
-        seed.position = self.group.get_random_joint_values()
-        # seed.position = [j1, j2, j3, j4, j5, j6, j7]
-        # seed.position = [-1.0460302734375, 1.2869541015625, -0.343587890625, -1.6291728515625, -2.08798828125, -0.701947265625, 3.9707255859375]
-        # seed.position = [-1.1142587890625, 0.0140517578125, 0.734078125, 0.7475322265625, -1.769462890625, -0.753177734375, 2.4646884765625]
-        ikreq.seed_angles.append(seed)
-
-        # get the response from IK solver Service
-        resp = self.ik_serv.call(ikreq)
-        print "========= resp 0 ========="
-        print resp
-
-        # reassgin a random value to joint seed if fail to get the valid solution
-        while resp.result_type[0] <= 0:
-            print "error type: "
-            print resp.result_type[0]
-            # j1 = random.randint(50,340)/100.0
-            seed.position = self.group.get_random_joint_values()
-            ikreq.seed_angles.append(seed)
-            resp = self.ik_serv.call(ikreq)
-
-        # message print out
-        rospy.loginfo("SUCCESS - Valid Joint Solution Found")
-        # rospy.loginfo("Response Message:\n%s", resp)
-
-        # rospy.logdebug("Response message: " + str(resp))
-
-        target_js = [resp.joints[0].position[0],
-                        resp.joints[0].position[1],
-                        resp.joints[0].position[2],
-                        resp.joints[0].position[3],
-                        resp.joints[0].position[4],
-                        resp.joints[0].position[5],
-                        resp.joints[0].position[6]]
-
-        # rospy.logdebug("Target value: " + str(target_js))
-
-        return target_js
+        return q
 
     def addCollisionObjects(self):
-        # input: description of the object
-        # output: none
-        # TODO: build a dictionary of objects - table, fridge, bottle
         # TODO: add color
 
         rospy.sleep(5)
@@ -162,33 +193,21 @@ class beerGrabber():
         self.scene.remove_world_object("table")
         self.scene.remove_world_object("table1")
         self.scene.remove_world_object("table2")
+
         p = PoseStamped()
         p.header.frame_id = self.robot.get_planning_frame()
+
         p.pose.position.x = -0.5
         p.pose.position.y = -1.0
         p.pose.position.z = -0.211
-
         self.scene.add_box("table1", p, (1.6,1.4,0.03))
 
         p.pose.position.x = 1.0
         p.pose.position.y = -0.5
         p.pose.position.z = -0.211
-
         self.scene.add_box("table2", p, (1.4,2.0,0.03))
 
         print "Add tables!"
-
-        # # bottle scene
-        # self.scene.remove_world_object("bottle")
-        # p_b = PoseStamped()
-        # p_b.header.frame_id = self.robot.get_planning_frame()
-        # p_b.pose.position.x = self.target.position.x + 0.06
-        # p_b.pose.position.y = self.target.position.y + 0.06
-        # p_b.pose.position.z = self.target.position.z
-        #
-        # self.scene.add_box("table", p_b, (0.06,0.06,0.12))
-
-        # TODO: add more scenes about the fridge
 
         return
 
@@ -342,7 +361,8 @@ if __name__=='__main__':
         bg.gripper_io.set_signal_value("position_m", 0.041)
 
         # add collision Objects
-        bg.addCollisionObjects()
+        obj_name = ["table","fridge_back","fridge_top","fridge_left","fridge_right","fridge_bottom"]
+        bg.addCollisionObjects(obj_name)
 
         # add grippers
         bg.add_grippers()
@@ -384,6 +404,7 @@ if __name__=='__main__':
 
         # get target in JointState, generate and execute the plan
         target_js = bg.generateValidTargetJointState(pose_target)
+
         bg.testPlan(target_js)
 
         # gripper part - disabled for testing
