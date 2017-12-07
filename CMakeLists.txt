@@ -10,7 +10,7 @@ project(sawyer_beer)
 find_package(catkin REQUIRED COMPONENTS
   cv_bridge
   geometry_msgs
-  intera_core_msgs
+  baxter_core_msgs
   message_generation
   roscpp
   rospy
