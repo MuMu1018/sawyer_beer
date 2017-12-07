@@ -19,8 +19,12 @@ from sensor_msgs.msg import JointState
 import baxter_dataflow
 # from baxter_io import IODeviceInterface
 # from baxter_core_msgs.msg import IONodeConfiguration
+import baxter_interface
+import baxter_external_devices
 
-from collision_objs import collisionObjects
+from baxter_interface import CHECK_VERSION
+
+# from collision_objs import collisionObjects
 # non ROS stuff:
 import numpy as np
 
@@ -64,7 +68,10 @@ class beerGrabber():
         # side="right"
         # grip_name = '_'.join([side, 'gripper'])
         # self.gripper_io = IODeviceInterface("end_effector", grip_name)
-
+        rs = baxter_interface.RobotEnable(CHECK_VERSION)
+        init_state = rs.state().enabled
+        left = baxter_interface.Gripper('left', CHECK_VERSION)
+        right = baxter_interface.Gripper('right', CHECK_VERSION)
         # add target position - might be useful when add bottle in the scene
         self.target = PoseStamped()
         self.dict = collisionObjects()
@@ -210,13 +217,28 @@ class beerGrabber():
 
         p = PoseStamped()
         p.header.frame_id = self.robot.get_planning_frame()
-
         p.pose.position.x = 1.0
         p.pose.position.y = 0.0
         p.pose.position.z = -0.211
         self.scene.add_box("table", p, (.75,1.2,0.03))
 
         print "Add table!"
+
+        # wall scene
+        self.scene.remove_world_object("wall")
+
+        w = PoseStamped()
+        w.header.frame_id = self.robot.get_planning_frame()
+        w.pose.position.x = -1.0
+        w.pose.position.y = -1.0
+        w.pose.position.z = 0.3
+        w.pose.orientation.x = 0.2
+        w.pose.orientation.y = -1.0
+        w.pose.orientation.z = 0.0
+        w.pose.orientation.w = 0.0
+        self.scene.add_box("wall", w, (0.05,3,3))
+
+        print "Add wall!"
 
         return
 
@@ -370,13 +392,13 @@ if __name__=='__main__':
         # test point in Cartesian Space - Manual setting
         pose_target = Pose()
 
-        pose_target.orientation.x= 1.0
-        pose_target.orientation.y= -1.0
-        pose_target.orientation.z= 0.0
+        pose_target.orientation.x= 0.0
+        pose_target.orientation.y= -1.2
+        pose_target.orientation.z= -0.1
         pose_target.orientation.w = -1.0
-        pose_target.position.x = 0.609927978406
-        pose_target.position.y = -0.542434554721
-        pose_target.position.z = 0.0147707694269
+        pose_target.position.x = 0.85
+        pose_target.position.y = -0.72
+        pose_target.position.z = -0.05
         print "pose_target_default: "
         print pose_target
 
