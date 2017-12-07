@@ -121,10 +121,15 @@ class collisionObjects():
         self.f_h_size = (self.h_height, self.h_radius)
         self.add_to_dict("fridge_handle",self.f_h,self.f_h_size)
 
-        #TODO: add two bottle info - just size info
-        #bottle_tall
+        #redbull
+        self.redbull_size = [.065,.065,.175]
 
-        #bottle_can
+        self.obj_size_dict["redbull"] = self.redbull_size
+
+        #coke
+        self.coke_size = [.065,.065,.16]
+
+        self.obj_size_dict["coke"] = self.coke_size
 
     def add_to_dict(self,name,p,p_size):
         self.obj_pose_dict[name] = p
