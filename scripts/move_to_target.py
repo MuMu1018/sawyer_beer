@@ -17,10 +17,12 @@ from moveit_msgs.srv import GetStateValidity, GetStateValidityRequest, GetStateV
 from sensor_msgs.msg import JointState
 
 import baxter_dataflow
-from baxter_io import IODeviceInterface
-from baxter_core_msgs.msg import IONodeConfiguration
+# from baxter_io import IODeviceInterface
+# from baxter_core_msgs.msg import IONodeConfiguration
 
 from collision_objs import collisionObjects
+# non ROS stuff:
+import numpy as np
 
 # DEFAULT_IK_SERVICE = "ExternalTools/right/PositionKinematicsNode/IKService"
 DEFAULT_IK_SERVICE = "compute_ik"
@@ -42,15 +44,15 @@ class beerGrabber():
 
         # ik service
         self.ik_service_name = DEFAULT_IK_SERVICE
-        self.ik_serv = rospy.ServiceProxy(self.ik_service_name, SolvePositionIK)
+        self.ik_serv = rospy.ServiceProxy(self.ik_service_name, GetPositionIK)
         self.ik_serv.wait_for_service()
         rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
 
-        # vision service
-        self.vision_service_name = DEFAULT_VISION_SERVICE
-        self.vision_serv = rospy.ServiceProxy(self.vision_service_name, target)
-        self.vision_serv.wait_for_service()
-        rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
+        # # vision service
+        # self.vision_service_name = DEFAULT_VISION_SERVICE
+        # self.vision_serv = rospy.ServiceProxy(self.vision_service_name, target)
+        # self.vision_serv.wait_for_service()
+        # rospy.loginfo("Successful connection to '" + self.ik_service_name + "'.")
 
         # check state service
         self.check_service_name = DEFAULT_CHECK_SERVICE
@@ -58,26 +60,26 @@ class beerGrabber():
         self.check_serv.wait_for_service()
         rospy.loginfo("Successful connection to '" + self.check_service_name + "'.")
 
-        # initiate gripper
-        side="right"
-        grip_name = '_'.join([side, 'gripper'])
-        self.gripper_io = IODeviceInterface("end_effector", grip_name)
+        # # initiate gripper
+        # side="right"
+        # grip_name = '_'.join([side, 'gripper'])
+        # self.gripper_io = IODeviceInterface("end_effector", grip_name)
 
         # add target position - might be useful when add bottle in the scene
         self.target = PoseStamped()
         self.dict = collisionObjects()
 
-    def getTargetEEF(self):
-        """
-        Get the target position in Cartesian Space from vision node
-
-        @return type: returns Pose() msg
-        """
-        req = targetRequest()
-        req.data = 0
-        resp = self.vision_serv.call(req)
-
-        return resp.pose
+    # def getTargetEEF(self):
+    #     """
+    #     Get the target position in Cartesian Space from vision node
+    #
+    #     @return type: returns Pose() msg
+    #     """
+    #     req = targetRequest()
+    #     req.data = 0
+    #     resp = self.vision_serv.call(req)
+    #
+    #     return resp.pose
 
     # def convertToJointStates(self, target):
     #     """
@@ -209,10 +211,10 @@ class beerGrabber():
         p = PoseStamped()
         p.header.frame_id = self.robot.get_planning_frame()
 
-        p.pose.position.x = -2.0
-        p.pose.position.y = -2.0
+        p.pose.position.x = 1.0
+        p.pose.position.y = 0.0
         p.pose.position.z = -0.211
-        self.scene.add_box("table", p, (2.0,2.0,0.03))
+        self.scene.add_box("table", p, (.75,1.2,0.03))
 
         print "Add table!"
 
@@ -347,7 +349,7 @@ if __name__=='__main__':
         bg.addCollisionObjects()
 
         # add grippers
-        bg.add_grippers()
+        # bg.add_grippers()
 
         # get target in Cartesian - Camera
         # pose_target = bg.getTargetEEF()
