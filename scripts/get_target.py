@@ -19,6 +19,7 @@ class vision():
         markers = ar_marker.markers
         # print("got to this 1")
         # print("got to this 2")
+        # print markers
         self.p = markers[0].pose.pose
         # print("got to this 3")
         return
