@@ -260,17 +260,19 @@ class beerGrabber():
         self.group.execute(plan)
         print "Done!"
 
-    ## start to grab the bottle after moving into the target position
-    def gripAct(self, pose_target): 
-        ## make sure the gripper is calibrated
+    
+    def gripAct(self, pose_target):
+    """ start to grab the bottle after moving into the target position """ 
+        
+        # make sure the gripper is calibrated
         if self.gripper_io.get_signal_value("is_calibrated") != True:
             self.gripper_io.set_signal_value("calibrate", True)
 
-        ## Make the gripper pully wide open, getting ready to grab
+        # Make the gripper pully wide open, getting ready to grab 
         self.gripper_io.set_signal_value("position_m", 0.041)
         rospy.sleep(1)
 
-        ## move gripper closer using a sequence of waypoints
+        # move gripper closer using a sequence of waypoints
         waypoints = []
         wpose = pose_target
         waypoints.append(copy.deepcopy(wpose))
@@ -288,40 +290,40 @@ class beerGrabber():
         self.group.execute(grip_plan)
         rospy.sleep(1)
         
-        ## grabbing bottle to a fairly tight position, and check how much force it's sensing right now
+        # grabbing bottle to a fairly tight position, and check how much force it's sensing right now
         self.gripper_io.set_signal_value("speed_mps", 1)
         self.gripper_io.set_signal_value("position_m", 0.00)
         light_size = self.gripper_io.get_signal_value("position_response_m")
         print "Loose size is: ", light_size
         rospy.sleep(1)
 
-        ## if the gripping is not tight enough, move the fingers closer to apply larger force
+        # if the gripping is not tight enough, move the fingers closer to apply larger force
         if self.gripper_io.get_signal_value("is_gripping") != True:
             print "Not stable!"
             light_force = self.gripper_io.get_signal_value("force_response_n")
             print "Risky force is: ", light_force ## tell how much the force is that will be risky
             self.gripper_io.set_signal_value("position_m", -0.03) ## move fingers closer
 
-        ## get force and obejct size responses at the very tight status 
+        # get force and obejct size responses at the very tight status 
         force = self.gripper_io.get_signal_value("force_response_n")
         obj_size = self.gripper_io.get_signal_value("position_response_m")
         print "force is: ", force
         print "object size is: ", obj_size
     
-    ## gripper releases the bottle after move into the final delivery location
-    def gripRelease(self): 
-        ## comparing the force difference between right after grapping, 
-        ## and after moving into delivery location
+    def gripRelease(self):
+    """ gripper releases the bottle after move into the final delivery location """ 
+        
+        # comparing the force difference between right after grapping, 
+        # and after moving into delivery location
         final_force = self.gripper_io.get_signal_value("force_response_n")
         print "final force is: ", final_force
 
-        ## if the bottle is successfully moved into delivery location, 
-        ## then open the fingers to a position that has only a little grip, 
-        ## thus eaiser for human user to take it
+        # if the bottle is successfully moved into delivery location, 
+        # then open the fingers to a position that has only a little grip, 
+        # thus eaiser for human user to take it
         if self.gripper_io.get_signal_value("is_gripping"):
             print "Releasing bottle!"
             self.gripper_io.set_signal_value("position_m", 0.012)
-
 
 
     def add_grippers(self, zoffset=0.065, yoffset=0.048):
