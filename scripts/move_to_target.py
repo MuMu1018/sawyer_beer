@@ -1,5 +1,9 @@
 #!/usr/bin/env python
 
+## ME 495 Final Project, Fall 2017, Northwestern University, Evanston, IL
+## Group project by members: Weilin Ma, Felix Wang, Mengjiao Hong, Ben Don, Huaiyu Wang 
+## Station: Saweyer Robot, Rethink Robotics Inc.
+
 import sys
 import copy
 import rospy
@@ -256,72 +260,65 @@ class beerGrabber():
         self.group.execute(plan)
         print "Done!"
 
-    def gripAct(self, pose_target):
-        ## Make the
+    ## start to grab the bottle after moving into the target position
+    def gripAct(self, pose_target): 
+        ## make sure the gripper is calibrated
+        if self.gripper_io.get_signal_value("is_calibrated") != True:
+            self.gripper_io.set_signal_value("calibrate", True)
+
+        ## Make the gripper pully wide open, getting ready to grab
         self.gripper_io.set_signal_value("position_m", 0.041)
         rospy.sleep(1)
 
-        # move gripper closer
+        ## move gripper closer using a sequence of waypoints
         waypoints = []
-        # waypoints.append(pose_target)
-
-        # setup the sequence
-        # wpose = Pose()
-        # wpose.orientation.w = -1.0
-        # wpose.orientation.x = 0.0
-        # wpose.orientation.y = -1.0
-        # wpose.orientation.z = 0.0
-        # wpose.position.x = waypoints[0].position.x
-        # wpose.position.y = waypoints[0].position.y
-        # wpose.position.z = waypoints[0].position.z
         wpose = pose_target
         waypoints.append(copy.deepcopy(wpose))
-
         for i in range(0, 3):
             wpose.position.x += 0.05
             waypoints.append(copy.deepcopy(wpose))
         print waypoints
 
         (grip_plan, fraction) = self.group.compute_cartesian_path(
-            waypoints,  # waypoints to follow
-            0.01,  # eef_step
-            0.0)  # jump_threshold
+            waypoints,  ## waypoints to follow
+            0.01,  ## eef_step
+            0.0)  ## jump_threshold
         print fraction
-
+        
         self.group.execute(grip_plan)
-
         rospy.sleep(1)
-        # calibrate gripper
-        if self.gripper_io.get_signal_value("is_calibrated") != True:
-            self.gripper_io.set_signal_value("calibrate", True)
-
-        ## grabbing bottle
+        
+        ## grabbing bottle to a fairly tight position, and check how much force it's sensing right now
         self.gripper_io.set_signal_value("speed_mps", 1)
         self.gripper_io.set_signal_value("position_m", 0.00)
         light_size = self.gripper_io.get_signal_value("position_response_m")
-        print "realeasing size is: ", light_size
-
+        print "Loose size is: ", light_size
         rospy.sleep(1)
-        ## if object is detected
+
+        ## if the gripping is not tight enough, move the fingers closer to apply larger force
         if self.gripper_io.get_signal_value("is_gripping") != True:
             print "Not stable!"
             light_force = self.gripper_io.get_signal_value("force_response_n")
-            print "risky force is: ", light_force
+            print "Risky force is: ", light_force ## tell how much the force is that will be risky
+            self.gripper_io.set_signal_value("position_m", -0.03) ## move fingers closer
 
-            self.gripper_io.set_signal_value("position_m", -0.03)
-
-        # get true force and obejct size responses
+        ## get force and obejct size responses at the very tight status 
         force = self.gripper_io.get_signal_value("force_response_n")
         obj_size = self.gripper_io.get_signal_value("position_response_m")
         print "force is: ", force
         print "object size is: ", obj_size
-
-    def gripRelease(self):
-        # touch_size = self.gripper_io.get_signal_value("position_response_m")
+    
+    ## gripper releases the bottle after move into the final delivery location
+    def gripRelease(self): 
+        ## comparing the force difference between right after grapping, 
+        ## and after moving into delivery location
         final_force = self.gripper_io.get_signal_value("force_response_n")
         print "final force is: ", final_force
+
+        ## if the bottle is successfully moved into delivery location, 
+        ## then open the fingers to a position that has only a little grip, 
+        ## thus eaiser for human user to take it
         if self.gripper_io.get_signal_value("is_gripping"):
-            # print touch_size
             print "Releasing bottle!"
             self.gripper_io.set_signal_value("position_m", 0.012)
 
@@ -423,8 +420,7 @@ if __name__=='__main__':
         # get target in JointState
         target_js = bg.generateValidTargetJointState(pose_target)
 
-
-        # bg.testPlan(target_js)
+        bg.testPlan(target_js)
 
 
         # bottle scene
@@ -450,34 +446,32 @@ if __name__=='__main__':
         # bg.group.go(pose_target)
         # print "Done!"
 
-        # gripper part - disabled for testing
-        # # start gripping
+        ## start gripping
         rospy.sleep(1)
         bg.gripAct(pose_target)
-        rospy.sleep(2)
-        # #
-        # ## move to a new location
+        rospy.sleep(1)
+
+        ## move to a new location
         release_target = Pose()
         release_target.orientation.x=0.0
         release_target.orientation.y=-1.0
         release_target.orientation.z=0.0
         release_target.orientation.w = -1.0
+        ## designed specific location for easier testing
         release_target.position.x = 0.909927978406
         release_target.position.y = -0.042434554721
         release_target.position.z = 0.0547707694269
-        #
-        # # get target in JointState
+
+        ## get delivery location in JointState
         release_target_js = bg.generateValidTargetJointState(release_target)
 
         bg.testPlan(release_target_js)
 
-        ## releasing bottle
-        # after move into position
+        ## releasing bottle after move into position
         rospy.sleep(1)
-
         bg.gripRelease()
-        # final_force = gripper_io.get_signal_value("force_response_n")
-        # print "final force is: ", final_force
+        
+        ## END of ALL execution
 
     except rospy.ROSInterruptException:
         pass
