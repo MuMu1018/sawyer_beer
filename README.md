@@ -4,12 +4,13 @@ Sawyer Bottle Grabber
 Goup members: Mengjiao Hong, Ben Don, Weilin Ma, Huaiyu Wang, Felix Wang
 ---------------------------------------------
 
+[![watch sawyer_coke](https://github.com/MuMu1018/Beer_Grabber_Sawyer_ME495_2017FALL/blob/final_demo/images/Sawyer_Coke.png)](https://www.youtube.com/watch?v=asuPnFKfNog&feature=youtu.be)
 
 #### Table of Contents ####
 
 [Instructions for running the files](#Instructions)
 
-[Project Overview](#Project Overview)
+[Project Overview](#Project\Overview)
 
 [Requirements](#Requirements)
 
@@ -17,49 +18,42 @@ Goup members: Mengjiao Hong, Ben Don, Weilin Ma, Huaiyu Wang, Felix Wang
 
 [Important topics](#topics)
 
-[Detecting the location of the bottle](#Vision)
+[Important services](#services)
 
-[Moving gripper to location](#Movement)
+[1. Detecting the location of the bottle ](#Vision)
 
-[Bottle hand-off](#Handoff)
+[2. Moving and gripping](#Movement)
+
 ---------------------------------------------
 #### Instructions for running files <a name="Instructions"></a>
 
-To run the files, the workspace must be connected to Sawyer and properly source. Then use the following command: `XXXXXXXXXX`
+To run the files, the workspace must be connected to Sawyer and properly sourced. Then use the following command: `roslaunch sawyer_beer main.launch`
 
-#### Project Overview  <a name="Project Overview"></a>
-The main goal of this project was to use Rethink Robotics' Sawyer robot to autonomously pick a bottleoff of a work surface and offer it to a user. This was the final project for ME495: Embedded Systems in Robotics at Northwestern University. The task was split into X main states which are implemented through a state machine:
-* Locate a block with tags using ar_track_alvar
-* Move to above the block position using a joint trajectory
-* Adjust the height using a Cartesian trajectory
-* Grab the block and drop it in a specified position
+#### Project Overview  <a name="Project\Overview"></a>
+The main goal of this project was to use Rethink Robotics' Sawyer robot to autonomously pick a bottleoff of a work surface and offer it to a user. This was the final project for ME495: Embedded Systems in Robotics at Northwestern University. The task was split into 3 major parts:
+* Detecting the location of the bottle
+* Moving the robot's gripper to the bottle, gripping it, moving it to the release position.
 
-#### Dependencies <a name="Requirements"></a>
 
-  *  Intera SDK - follow the [Workstation Setup](http://sdk.rethinkrobotics.com/intera/Workstation_Setup) Instructions
-  * XXXXXXXXXXX
+#### Requirements <a name="Requirements"></a>
+
+  *  Intera SDK - follow the [Workstation Setup](http://sdk.rethinkrobotics.com/intera/Workstation_Setup) Instructions. This site includes all the specific dependencies such as rosdep, control-msgs, cv-bridge, etc.
+  *  MoveIt! - follow the [steps](http://moveit.ros.org/install/) for install. Note the specific installation directions are for indigo, so make sure to include your OS version instead such as kinetic.
 
 #### Important nodes <a name="nodes"></a>
- * `vision.py` provides AR detection
- * `move_to_target.py` moves the gripper at the end effector to the bottle
- * `move_to_laser.py` uses the laser range data to adjust the height
- * `move_to_goal.py` controls the grippers and drops off the block
+ * `get_target.py` provides AR detection
+ * `move_to_target.py` moves the end effector and opens/closes the gripper
 
 #### Important topics <a name="topics"></a>
- * `block_position` is published by the visualization node and contains the Pose of the block
- * `hand_position` is published by the first moving node and contains the Pose of the gripper
- * `state` contains the current state of the state machine
- * `goal` contains which group the current block belongs to for sorting
+ * `ar_pose_marker` this topic is subscribed to get the AR pose information
 
-#### Detecting the block with AR tracking  <a name="Vision"></a>
-In this state, ar_track_alvar is used to find the block positions and orientations. Each block has a unique tag; if multiple blocks are found, the block that is closest to the current position will be used.
+#### Important services <a name="services"></a>
+ * `ExternalTools/right/Position/KinematicsNode/IKService` this service provides IK solutions
+ * `check_state_validity` this service verifies that the robot position doesn't collide with objects in the scene
+ * `get_target` this service provides us the AR tag pose information from camera
 
-#### Moving above the block  <a name="Movement"></a>
-In this state, a joint trajectory is calculated to move between from the current position to 10 mm above the block. The joint angles for the gripper position at the block is calculated through inverse kinematics and transformed to the robot's base frame. The joint trajectory is then calulcated with quintic time scaling and the joint positions are sent sequentially to move the gripper to the desired position.
+#### 1. Detecting the location of the bottle <a name="Vision"></a>
+In this state, a service is written that provides the pose information of the AR tag.
 
-#### Adjusting the height  <a name="fine"></a>
-In this state, a Cartesian trajectory is used to hold the orientation of the gripper constant and just change the height as the gripper moves closer to the block. The laser range data from Baxter's hand is used in a feedback loop to determine when the gripper has reached the block.
-
-
-#### Dropoff <a name="drop"></a>
-In this state, the gripper grabs the block and moves to drop it off in a specified location. The blocks are sorted into two groups using metadata from the AR tags to specify which dropoff location to use.
+#### 2. Moving and gripping <a name="Movement"></a>
+In this state, the gripper initializes to open. The collision objects are added to the scene. Sawyer's gripper moves to a home position that ensures the AR tag is visible by the wrist camera. Next, the node gets the AR tag pose information and calibrates it to a desired end effector position (ie where the bottle is located relative to the tag). The joint angles of the end effector in the desired orientation are computed and validated to ensure no collisions. Then the motion plan is calculated using collision information. Assuming no errors, the bottle moves to target, grips the bottle, and moves it to release position where the grip loosens enough to let the user pull the bottle out.
