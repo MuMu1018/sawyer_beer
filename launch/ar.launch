@@ -1,3 +1,8 @@
+<!--
+    This launch file is to launch the ar_track_alvar pkg and relative paremeters. If it catch the position of the tag, it will publish a /ar_track_pose topic which has the ar tag pose on it. 
+You can find the pkg here:https://github.com/ros-perception/ar_track_alvar.
+-->
+
 <launch>
 	<arg name="marker_size" default="5.5" />
 	<arg name="max_new_marker_error" default="0.08" />
@@ -16,3 +21,5 @@
 		<remap from="camera_info"   to="$(arg cam_info_topic)" />
 	</node>
 </launch>
+
+
