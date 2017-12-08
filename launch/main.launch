@@ -1,0 +1,20 @@
+<!--
+    This launch file is to launch most of the needed nodes. From top to bottom, it launchs the ar_track_alvar pkg, sawyer_moveit pkg with gripper, sawyer sdk intera_interface oint_trajectory_action_server and service server target.
+-->
+
+<launch>
+
+    <arg name="arg1" value="true"/>
+    <include file="$(find sawyer_beer)/launch/ar.launch"/>
+    <include file="$(find sawyer_moveit_config)/launch/sawyer_moveit.launch">
+      <arg name="electric_gripper" value="True"/>
+    </include>
+
+    
+
+    <node pkg="intera_interface" name="joint_trajectory_action_server" type="joint_trajectory_action_server.py" output="screen" />
+    
+    <node pkg="sawyer_beer" name="get_target" type="get_target.py" output="screen" />
+    
+
+</launch>
