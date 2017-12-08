@@ -262,7 +262,7 @@ class beerGrabber():
 
     
     def gripAct(self, pose_target):
-    """ start to grab the bottle after moving into the target position """ 
+        """ start to grab the bottle after moving into the target position """ 
         
         # make sure the gripper is calibrated
         if self.gripper_io.get_signal_value("is_calibrated") != True:
@@ -311,7 +311,7 @@ class beerGrabber():
         print "object size is: ", obj_size
     
     def gripRelease(self):
-    """ gripper releases the bottle after move into the final delivery location """ 
+        """ gripper releases the bottle after move into the final delivery location """ 
         
         # comparing the force difference between right after grapping, 
         # and after moving into delivery location
