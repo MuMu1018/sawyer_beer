@@ -1,3 +1,7 @@
+<!--
+    This launch file is to launch most of the needed nodes. From top to bottom, it launchs the ar_track_alvar pkg, sawyer_moveit pkg with gripper, sawyer sdk intera_interface oint_trajectory_action_server and service server target.
+-->
+
 <launch>
 
     <arg name="arg1" value="true"/>
