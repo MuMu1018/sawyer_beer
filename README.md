@@ -4,7 +4,7 @@ Sawyer Bottle Grabber
 Goup members: Mengjiao Hong, Ben Don, Weilin Ma, Huaiyu Wang, Felix Wang
 ---------------------------------------------
 
-[![watch sawyer_coke](https://github.com/MuMu1018/Beer_Grabber_Sawyer_ME495_2017FALL/blob/final_demo/images/Sawyer_Coke.png)](https://www.youtube.com/watch?v=asuPnFKfNog&feature=youtu.be)
+[![sawyer_coke](https://img.youtube.com/vi/asuPnFKfNog/0.jpg)](https://www.youtube.com/watch?v=asuPnFKfNog)
 
 #### Table of Contents ####
 
