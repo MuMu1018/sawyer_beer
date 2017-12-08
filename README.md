@@ -1,4 +1,4 @@
-Sawyer Bottle Grabber
+Sawyer Beer (Coke) Bottle Grabber
 =============================================
 
 #### Goup members:  [Mengjiao Hong](https://github.com/MuMu1018), [Ben Don](https://github.com/benbdon), [Weilin Ma](https://github.com/KansoW) , [Huaiyu Wang](https://github.com/whycn), [Felix Wang](https://github.com/yanweiw)
